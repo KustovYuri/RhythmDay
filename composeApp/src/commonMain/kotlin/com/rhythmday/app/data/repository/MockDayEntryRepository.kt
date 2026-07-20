@@ -5,7 +5,8 @@ import com.rhythmday.app.core.domain.model.DayMetrics
 import com.rhythmday.app.core.domain.repository.DayEntryRepository
 import com.rhythmday.app.core.domain.usecase.DayScoreCalculatorUseCase
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -16,7 +17,16 @@ import kotlin.time.Clock
 class MockDayEntryRepository(
     private val scoreCalculator: DayScoreCalculatorUseCase
 ) : DayEntryRepository {
-    override fun observeEntries(): Flow<List<DayEntry>> = flowOf(createEntries())
+    private val entries = MutableStateFlow(createEntries())
+
+    override fun observeEntries(): Flow<List<DayEntry>> = entries
+
+    override suspend fun upsertEntry(entry: DayEntry) {
+        entries.update { currentEntries ->
+            (currentEntries.filterNot { currentEntry -> currentEntry.date == entry.date } + entry)
+                .sortedBy(DayEntry::date)
+        }
+    }
 
     private fun createEntries(): List<DayEntry> {
         val today = Clock.System.todayIn(TimeZone.currentSystemDefault())

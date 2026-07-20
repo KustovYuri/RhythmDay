@@ -48,6 +48,7 @@ import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import com.rhythmday.app.core.designsystem.RhythmDayIcons
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
+import com.rhythmday.app.feature.createentry.presentation.CreateEntryRoute as CreateEntryScreenRoute
 import com.rhythmday.app.feature.home.presentation.HomeRoute
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
@@ -206,7 +207,11 @@ fun RhythmDayNavigation() {
                     PlaceholderContent("История", contentPadding)
                 }
                 entry<CreateEntryRoute> {
-                    PlaceholderContent("Запись дня", contentPadding)
+                    CreateEntryScreenRoute(
+                        viewModel = koinViewModel(),
+                        contentPadding = contentPadding,
+                        onBack = ::navigateBack
+                    )
                 }
                 entry<AnalyticsRoute> {
                     PlaceholderContent("Аналитика", contentPadding)

@@ -49,4 +49,6 @@ private class FakeDayEntryRepository(
     private val entries: List<DayEntry>
 ) : DayEntryRepository {
     override fun observeEntries(): Flow<List<DayEntry>> = flowOf(entries)
+
+    override suspend fun upsertEntry(entry: DayEntry) = Unit
 }

@@ -1,8 +1,6 @@
 package com.rhythmday.app.feature.home.presentation
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -58,6 +56,9 @@ import kotlinx.datetime.isoDayNumber
 import kotlin.math.roundToInt
 
 private val CardShape = RoundedCornerShape(8.dp)
+private val ControlBackground = Color(0xFFEDF3F5)
+private val FieldBackground = Color(0xFFF0F4F7)
+private val TagBackground = Color(0xFFCBE8E3)
 
 @Composable
 fun HomeRoute(
@@ -183,7 +184,9 @@ private fun HomeHeader(
                 expanded = menuExpanded,
                 onDismissRequest = { menuExpanded = false },
                 containerColor = RhythmDayPalette.Panel,
-                shape = CardShape
+                shape = CardShape,
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp
             ) {
                 DropdownMenuItem(
                     text = { Text("Профиль") },
@@ -318,8 +321,7 @@ private fun FilledTodayContent(
                 .fillMaxWidth()
                 .padding(top = 16.dp)
                 .clip(CardShape)
-                .background(Color.White.copy(alpha = 0.18f))
-                .border(1.dp, Color.White.copy(alpha = 0.18f), CardShape)
+                .background(Color.White.copy(alpha = 0.24f))
                 .padding(12.dp),
             verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.SpaceBetween
@@ -373,8 +375,7 @@ private fun FilledMetric(label: String, value: Int, modifier: Modifier = Modifie
         modifier = modifier
             .defaultMinSize(minHeight = 48.dp)
             .clip(CardShape)
-            .background(Color.White.copy(alpha = 0.12f))
-            .border(1.dp, Color.White.copy(alpha = 0.14f), CardShape)
+            .background(Color.White.copy(alpha = 0.20f))
             .padding(8.dp),
         verticalArrangement = Arrangement.Center
     ) {
@@ -401,8 +402,7 @@ private fun StatusPill(text: String) {
         modifier = Modifier
             .heightIn(min = 30.dp)
             .clip(CardShape)
-            .background(Color.White.copy(alpha = 0.16f))
-            .border(1.dp, Color.White.copy(alpha = 0.16f), CardShape)
+            .background(Color.White.copy(alpha = 0.22f))
             .padding(horizontal = 10.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -424,8 +424,8 @@ private fun PrototypeButton(
     primary: Boolean,
     showAddIcon: Boolean = false
 ) {
-    val background = if (primary) RhythmDayPalette.Teal else Color.White.copy(alpha = 0.10f)
-    val border = Color.White.copy(alpha = 0.22f)
+    val background = Color.White.copy(alpha = if (primary) 0.32f else 0.18f)
+    val contentColor = Color.White
 
     Row(
         modifier = Modifier
@@ -433,7 +433,6 @@ private fun PrototypeButton(
             .height(46.dp)
             .clip(CardShape)
             .background(background)
-            .border(1.dp, border, CardShape)
             .clickable(role = Role.Button, onClick = onClick),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
@@ -442,7 +441,7 @@ private fun PrototypeButton(
             Icon(
                 Icons.Filled.Add,
                 contentDescription = null,
-                tint = Color.White,
+                tint = contentColor,
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.size(4.dp))
@@ -452,7 +451,7 @@ private fun PrototypeButton(
             fontSize = 14.sp,
             lineHeight = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.White,
+            color = contentColor,
             maxLines = 1
         )
     }
@@ -482,7 +481,7 @@ private fun WeekCard(
                     size = 34.dp,
                     iconSize = 18.dp,
                     tint = RhythmDayPalette.TealDark,
-                    background = Color(0xFFF8FBFC)
+                    background = ControlBackground
                 )
             }
             Row(
@@ -523,8 +522,7 @@ private fun WeekStat(
         modifier = modifier
             .heightIn(min = 86.dp)
             .clip(CardShape)
-            .background(Color(0xFFFBFCFD))
-            .border(1.dp, RhythmDayPalette.Line, CardShape)
+            .background(FieldBackground)
             .padding(10.dp),
         horizontalAlignment = Alignment.Start
     ) {
@@ -598,7 +596,7 @@ private fun LatestEntryCard(
                             modifier = Modifier
                                 .heightIn(min = 26.dp)
                                 .clip(CardShape)
-                                .background(Color(0xFFEDF4F3))
+                                .background(TagBackground)
                                 .padding(horizontal = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -647,8 +645,6 @@ private fun PrototypeCard(
         modifier = Modifier.fillMaxWidth().then(clickModifier),
         shape = CardShape,
         color = RhythmDayPalette.Panel,
-        border = BorderStroke(1.dp, RhythmDayPalette.Line),
-        shadowElevation = 1.dp,
         content = content
     )
 }
@@ -661,7 +657,7 @@ private fun PrototypeIconButton(
     size: androidx.compose.ui.unit.Dp = 42.dp,
     iconSize: androidx.compose.ui.unit.Dp = 20.dp,
     tint: Color = RhythmDayPalette.Ink,
-    background: Color = RhythmDayPalette.Panel,
+    background: Color = ControlBackground,
     filled: Boolean = false
 ) {
     Box(
@@ -669,11 +665,6 @@ private fun PrototypeIconButton(
             .size(size)
             .clip(CardShape)
             .background(if (filled) Color.White.copy(alpha = 0.94f) else background)
-            .border(
-                width = 1.dp,
-                color = if (filled) Color.White.copy(alpha = 0.58f) else RhythmDayPalette.Line,
-                shape = CardShape
-            )
             .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
