@@ -9,6 +9,7 @@ actual fun rememberSpeechTextRequester(
 ): SpeechTextRequester = remember {
     SpeechTextRequester(
         isListening = false,
+        audioLevel = 0f,
         toggle = {}
     )
 }

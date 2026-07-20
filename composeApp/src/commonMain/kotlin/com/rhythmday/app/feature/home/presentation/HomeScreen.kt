@@ -1,5 +1,6 @@
 package com.rhythmday.app.feature.home.presentation
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -276,13 +277,11 @@ private fun EmptyTodayContent(
             PrototypeButton(
                 text = "Заполнить день",
                 onClick = onCreateEntry,
-                primary = true,
                 showAddIcon = true
             )
             PrototypeButton(
                 text = "Блиц-опрос",
-                onClick = onStartBlitz,
-                primary = false
+                onClick = onStartBlitz
             )
         }
     }
@@ -421,10 +420,9 @@ private fun StatusPill(text: String) {
 private fun PrototypeButton(
     text: String,
     onClick: () -> Unit,
-    primary: Boolean,
     showAddIcon: Boolean = false
 ) {
-    val background = Color.White.copy(alpha = if (primary) 0.32f else 0.18f)
+    val background = Color.White.copy(alpha = 0.18f)
     val contentColor = Color.White
 
     Row(
@@ -645,6 +643,7 @@ private fun PrototypeCard(
         modifier = Modifier.fillMaxWidth().then(clickModifier),
         shape = CardShape,
         color = RhythmDayPalette.Panel,
+        border = BorderStroke(1.dp, RhythmDayPalette.Line),
         content = content
     )
 }

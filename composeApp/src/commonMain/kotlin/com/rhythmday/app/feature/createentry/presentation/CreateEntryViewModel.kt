@@ -11,13 +11,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class CreateEntryUiState(
-    val energy: Int = 7,
-    val mood: Int = 6,
-    val wellbeing: Int = 7,
-    val sleepQuality: Int = 8,
-    val mentalClarity: Int = 6,
-    val sociality: Int = 6,
-    val stress: Int = 4,
+    val energy: Int? = null,
+    val mood: Int? = null,
+    val wellbeing: Int? = null,
+    val sleepQuality: Int? = null,
+    val mentalClarity: Int? = null,
+    val sociality: Int? = null,
+    val stress: Int? = null,
     val selectedTags: Set<String> = emptySet(),
     val customTags: List<String> = emptyList(),
     val tagsExpanded: Boolean = false,
@@ -25,7 +25,18 @@ data class CreateEntryUiState(
     val isSaving: Boolean = false,
     val isSaved: Boolean = false,
     val errorMessage: String? = null
-)
+) {
+    val canSave: Boolean
+        get() = !isSaving && listOf(
+            energy,
+            mood,
+            wellbeing,
+            sleepQuality,
+            mentalClarity,
+            sociality,
+            stress
+        ).all { value -> value != null }
+}
 
 enum class CreateEntryMetric {
     ENERGY,
@@ -106,7 +117,8 @@ class CreateEntryViewModel(
 
     fun save() {
         val state = _uiState.value
-        if (state.isSaving) return
+        val metrics = state.toMetricsOrNull() ?: return
+        if (!state.canSave) return
 
         viewModelScope.launch {
             _uiState.update { currentState ->
@@ -115,7 +127,7 @@ class CreateEntryViewModel(
 
             runCatching {
                 saveDayEntryUseCase(
-                    metrics = state.toMetrics(),
+                    metrics = metrics,
                     tags = state.orderedSelectedTags(),
                     note = state.note
                 )
@@ -138,15 +150,25 @@ class CreateEntryViewModel(
         _uiState.update { state -> state.copy(isSaved = false) }
     }
 
-    private fun CreateEntryUiState.toMetrics(): DayMetrics = DayMetrics(
-        energy = energy,
-        mood = mood,
-        wellbeing = wellbeing,
-        mentalClarity = mentalClarity,
-        sociality = sociality,
-        sleepQuality = sleepQuality,
-        stress = stress
-    )
+    private fun CreateEntryUiState.toMetricsOrNull(): DayMetrics? {
+        val energyValue = energy ?: return null
+        val moodValue = mood ?: return null
+        val wellbeingValue = wellbeing ?: return null
+        val mentalClarityValue = mentalClarity ?: return null
+        val socialityValue = sociality ?: return null
+        val sleepQualityValue = sleepQuality ?: return null
+        val stressValue = stress ?: return null
+
+        return DayMetrics(
+            energy = energyValue,
+            mood = moodValue,
+            wellbeing = wellbeingValue,
+            mentalClarity = mentalClarityValue,
+            sociality = socialityValue,
+            sleepQuality = sleepQualityValue,
+            stress = stressValue
+        )
+    }
 
     private fun CreateEntryUiState.orderedSelectedTags(): List<String> =
         (DefaultDayTags + customTags)

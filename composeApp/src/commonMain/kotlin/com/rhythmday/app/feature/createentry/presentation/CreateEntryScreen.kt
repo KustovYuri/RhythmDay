@@ -1,6 +1,10 @@
 package com.rhythmday.app.feature.createentry.presentation
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +33,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -40,13 +45,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
@@ -70,6 +80,8 @@ private val MediumPillBackground = Color(0xFFFFF4D8)
 private val MediumPillText = Color(0xFF896617)
 private val HighPillBackground = Color(0xFFE4F3EA)
 private val HighPillText = Color(0xFF2D7841)
+private const val VoiceWaveformBarCount = 28
+private const val VoiceWaveformSampleIntervalMillis = 160L
 
 @Composable
 fun CreateEntryRoute(
@@ -99,7 +111,8 @@ fun CreateEntryRoute(
         onCustomTagAdded = viewModel::onCustomTagAdded,
         onNoteChanged = viewModel::onNoteChanged,
         speechInputActive = speechTextRequester.isListening,
-        onSpeechInputClick = speechTextRequester.toggle,
+        speechAudioLevel = speechTextRequester.audioLevel,
+        onSpeechInputToggle = speechTextRequester.toggle,
         onSave = viewModel::save
     )
 }
@@ -115,10 +128,12 @@ private fun CreateEntryScreen(
     onCustomTagAdded: (String) -> Unit,
     onNoteChanged: (String) -> Unit,
     speechInputActive: Boolean,
-    onSpeechInputClick: () -> Unit,
+    speechAudioLevel: Float,
+    onSpeechInputToggle: () -> Unit,
     onSave: () -> Unit
 ) {
     var showCustomTagDialog by remember { mutableStateOf(false) }
+    var showSpeechInputDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -151,12 +166,12 @@ private fun CreateEntryScreen(
             DescriptionCard(
                 note = state.note,
                 onNoteChanged = onNoteChanged,
-                speechInputActive = speechInputActive,
-                onSpeechInputClick = onSpeechInputClick
+                onSpeechInputClick = { showSpeechInputDialog = true }
             )
         }
         item {
             SaveSection(
+                enabled = state.canSave,
                 isSaving = state.isSaving,
                 errorMessage = state.errorMessage,
                 onSave = onSave,
@@ -172,6 +187,21 @@ private fun CreateEntryScreen(
                 onCustomTagAdded(tag)
                 showCustomTagDialog = false
             }
+        )
+    }
+
+    if (showSpeechInputDialog) {
+        val dismissSpeechInput = {
+            if (speechInputActive) onSpeechInputToggle()
+            showSpeechInputDialog = false
+        }
+
+        VoiceInputDialog(
+            isListening = speechInputActive,
+            audioLevel = speechAudioLevel,
+            onStart = onSpeechInputToggle,
+            onStop = dismissSpeechInput,
+            onDismiss = dismissSpeechInput
         )
     }
 }
@@ -246,39 +276,32 @@ private fun MetricSliderBlock(
     val interactionSource = remember { MutableInteractionSource() }
 
     Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = item.label,
-                fontSize = 13.sp,
-                lineHeight = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = RhythmDayPalette.Muted
-            )
-            Text(
-                text = "1-10",
-                fontSize = 13.sp,
-                lineHeight = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = RhythmDayPalette.Muted
-            )
-        }
+        Text(
+            text = item.label,
+            fontSize = 13.sp,
+            lineHeight = 16.sp,
+            fontWeight = FontWeight.Bold,
+            color = RhythmDayPalette.Muted
+        )
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Slider(
-                value = item.value.toFloat(),
+                value = item.value?.toFloat() ?: 1f,
                 onValueChange = { value -> onValueChange(value.roundToInt().coerceIn(1, 10)) },
                 valueRange = 1f..10f,
                 steps = 8,
                 interactionSource = interactionSource,
-                thumb = { CompactSliderThumb() },
+                thumb = { CompactSliderThumb(visible = item.value != null) },
                 track = { sliderState ->
-                    CompactSliderTrack(progress = sliderState.coercedValueAsFraction)
+                    CompactSliderTrack(
+                        progress = if (item.value == null) {
+                            0f
+                        } else {
+                            sliderState.coercedValueAsFraction
+                        }
+                    )
                 },
                 modifier = Modifier.weight(1f).height(30.dp)
             )
@@ -292,12 +315,14 @@ private fun MetricSliderBlock(
 }
 
 @Composable
-private fun CompactSliderThumb() {
+private fun CompactSliderThumb(visible: Boolean) {
     Box(
         modifier = Modifier
             .size(18.dp)
             .clip(CircleShape)
-            .background(RhythmDayPalette.Teal)
+            .background(
+                if (visible) RhythmDayPalette.Teal else RhythmDayPalette.Muted
+            )
     )
 }
 
@@ -323,10 +348,14 @@ private fun CompactSliderTrack(progress: Float) {
 
 @Composable
 private fun ScorePill(
-    value: Int,
+    value: Int?,
     inverted: Boolean
 ) {
-    val colors = pillColors(value = value, inverted = inverted)
+    val colors = if (value == null) {
+        PillColors(ControlBackground, RhythmDayPalette.Muted)
+    } else {
+        pillColors(value = value, inverted = inverted)
+    }
 
     Box(
         modifier = Modifier
@@ -337,7 +366,7 @@ private fun ScorePill(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = value.toString(),
+            text = value?.toString() ?: "—",
             fontSize = 16.sp,
             lineHeight = 18.sp,
             fontWeight = FontWeight.Bold,
@@ -430,7 +459,6 @@ private fun ExpandTagsChip(
 private fun DescriptionCard(
     note: String,
     onNoteChanged: (String) -> Unit,
-    speechInputActive: Boolean,
     onSpeechInputClick: () -> Unit
 ) {
     PrototypeCard {
@@ -439,18 +467,9 @@ private fun DescriptionCard(
                 title = "Описание дня",
                 action = {
                     CompactIconButton(
-                        icon = if (speechInputActive) Icons.Filled.Stop else Icons.Outlined.Mic,
-                        contentDescription = if (speechInputActive) {
-                            "Завершить голосовой ввод"
-                        } else {
-                            "Начать голосовой ввод"
-                        },
-                        onClick = onSpeechInputClick,
-                        background = if (speechInputActive) {
-                            SelectedTagBackground
-                        } else {
-                            ControlBackground
-                        }
+                        icon = Icons.Outlined.Mic,
+                        contentDescription = "Открыть голосовой ввод",
+                        onClick = onSpeechInputClick
                     )
                 }
             )
@@ -459,6 +478,162 @@ private fun DescriptionCard(
                 onValueChange = onNoteChanged,
                 placeholder = "Что запомнилось сегодня?",
                 modifier = Modifier.padding(top = 12.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun VoiceInputDialog(
+    isListening: Boolean,
+    audioLevel: Float,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(0.9f).widthIn(max = 318.dp),
+            shape = CardShape,
+            color = RhythmDayPalette.Panel
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Голосовой ввод",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = RhythmDayPalette.Ink,
+                    textAlign = TextAlign.Center
+                )
+                Row(
+                    modifier = Modifier.padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (isListening) RhythmDayPalette.HardDay else RhythmDayPalette.Line
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isListening) "Идёт запись" else "Готово к записи",
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isListening) {
+                            RhythmDayPalette.HardDay
+                        } else {
+                            RhythmDayPalette.Muted
+                        }
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 18.dp)
+                        .height(78.dp)
+                        .clip(CardShape)
+                        .background(FieldBackground)
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                ) {
+                    VoiceWaveform(
+                        audioLevel = audioLevel,
+                        isListening = isListening,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                Spacer(modifier = Modifier.height(18.dp))
+                CompactIconButton(
+                    icon = if (isListening) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                    contentDescription = if (isListening) {
+                        "Завершить запись"
+                    } else {
+                        "Начать запись"
+                    },
+                    onClick = if (isListening) onStop else onStart,
+                    size = 54.dp,
+                    iconSize = 26.dp,
+                    tint = RhythmDayPalette.TealDark,
+                    background = ControlBackground
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VoiceWaveform(
+    audioLevel: Float,
+    isListening: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val samples = remember { mutableStateListOf<Float>() }
+    val latestAudioLevel by rememberUpdatedState(audioLevel)
+    val scrollProgress = remember { Animatable(0f) }
+    var incomingLevel by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(isListening) {
+        if (isListening) {
+            while (true) {
+                val sampledLevel = latestAudioLevel.coerceIn(0f, 1f)
+                incomingLevel = sampledLevel
+                scrollProgress.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(
+                        durationMillis = VoiceWaveformSampleIntervalMillis.toInt(),
+                        easing = LinearEasing
+                    )
+                )
+                samples += sampledLevel
+                if (samples.size > VoiceWaveformBarCount) samples.removeAt(0)
+                scrollProgress.snapTo(0f)
+            }
+        } else {
+            samples.clear()
+            incomingLevel = 0f
+            scrollProgress.snapTo(0f)
+        }
+    }
+
+    Canvas(modifier = modifier) {
+        val step = size.width / VoiceWaveformBarCount
+        val strokeWidth = 3.dp.toPx()
+        val minimumHeight = 5.dp.toPx()
+        val availableHeight = (size.height - minimumHeight).coerceAtLeast(0f)
+        val emptyBars = VoiceWaveformBarCount - samples.size
+        val color = if (isListening) RhythmDayPalette.Teal else RhythmDayPalette.Line
+
+        repeat(VoiceWaveformBarCount) { index ->
+            val sampleIndex = index - emptyBars
+            val sample = samples.getOrNull(sampleIndex) ?: 0f
+            val barHeight = minimumHeight + availableHeight * sample
+            val x = step * (index + 0.5f - scrollProgress.value)
+
+            drawLine(
+                color = color,
+                start = Offset(x, (size.height - barHeight) / 2f),
+                end = Offset(x, (size.height + barHeight) / 2f),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round
+            )
+        }
+
+        if (isListening) {
+            val incomingHeight = minimumHeight +
+                availableHeight * incomingLevel
+            val incomingX = step * (VoiceWaveformBarCount + 0.5f - scrollProgress.value)
+
+            drawLine(
+                color = color,
+                start = Offset(incomingX, (size.height - incomingHeight) / 2f),
+                end = Offset(incomingX, (size.height + incomingHeight) / 2f),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round
             )
         }
     }
@@ -507,20 +682,24 @@ private fun MultilineInput(
 
 @Composable
 private fun SaveSection(
+    enabled: Boolean,
     isSaving: Boolean,
     errorMessage: String?,
     onSave: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val background = if (enabled) RhythmDayPalette.Teal else ControlBackground
+    val contentColor = if (enabled) Color.White else RhythmDayPalette.Muted
+
     Column(modifier = modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(46.dp)
                 .clip(CardShape)
-                .background(RhythmDayPalette.Teal)
+                .background(background)
                 .clickable(
-                    enabled = !isSaving,
+                    enabled = enabled,
                     role = Role.Button,
                     onClick = onSave
                 ),
@@ -531,7 +710,7 @@ private fun SaveSection(
                 fontSize = 14.sp,
                 lineHeight = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = contentColor
             )
         }
         if (errorMessage != null) {
@@ -720,7 +899,7 @@ private fun CompactIconButton(
 private data class MetricItem(
     val metric: CreateEntryMetric,
     val label: String,
-    val value: Int,
+    val value: Int?,
     val inverted: Boolean = false
 )
 
