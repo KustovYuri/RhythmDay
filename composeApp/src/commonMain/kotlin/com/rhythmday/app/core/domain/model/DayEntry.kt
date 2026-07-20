@@ -1,6 +1,7 @@
 package com.rhythmday.app.core.domain.model
 
 import kotlinx.datetime.LocalDate
+import kotlin.time.Instant
 
 data class DayMetrics(
     val energy: Int,
@@ -24,5 +25,6 @@ data class DayEntry(
     val metrics: DayMetrics,
     val overallScore: Double,
     val tags: List<String>,
-    val note: String?
+    val note: String?,
+    val savedAt: Instant? = null
 )

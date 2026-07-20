@@ -11,11 +11,13 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Instant
 
 class SaveDayEntryUseCaseTest {
     @Test
     fun savesTodayEntryWithCalculatedScoreAndCleanText() = runTest {
         val today = LocalDate(2026, 7, 20)
+        val savedAt = Instant.parse("2026-07-20T15:42:00Z")
         val repository = FakeMutableDayEntryRepository(
             listOf(
                 DayEntry(
@@ -31,7 +33,8 @@ class SaveDayEntryUseCaseTest {
         val useCase = SaveDayEntryUseCase(
             repository = repository,
             scoreCalculator = DayScoreCalculatorUseCase(),
-            currentDate = { today }
+            currentDate = { today },
+            currentInstant = { savedAt }
         )
         val metrics = DayMetrics(
             energy = 7,
@@ -55,6 +58,7 @@ class SaveDayEntryUseCaseTest {
         assertEquals(DayScoreCalculatorUseCase()(metrics), savedEntry.overallScore)
         assertEquals(listOf("Работа", "Спорт"), savedEntry.tags)
         assertEquals("Хороший день", savedEntry.note)
+        assertEquals(savedAt, savedEntry.savedAt)
         assertEquals(savedEntry, repository.observeEntries().first().single())
     }
 }

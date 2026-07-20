@@ -53,8 +53,11 @@ import com.rhythmday.app.feature.home.domain.HomeDashboard
 import com.rhythmday.app.feature.home.domain.WeekSummary
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.isoDayNumber
+import kotlinx.datetime.toLocalDateTime
 import kotlin.math.roundToInt
+import kotlin.time.Instant
 
 private val CardShape = RoundedCornerShape(8.dp)
 private val ControlBackground = Color(0xFFEDF3F5)
@@ -299,7 +302,7 @@ private fun FilledTodayContent(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             StatusPill("День записан")
-            StatusPill("18:42")
+            StatusPill(entry.savedAt.asLocalTime())
         }
         Text(
             text = "Опрос сохранен",
@@ -697,6 +700,13 @@ private fun LocalDate.asRelativeDate(today: LocalDate): String {
         dayOfWeek.asName().replaceFirstChar(Char::uppercase)
     }
     return "$prefix, $day ${monthNames[month.ordinal]}"
+}
+
+private fun Instant?.asLocalTime(): String {
+    if (this == null) return "—"
+
+    val time = toLocalDateTime(TimeZone.currentSystemDefault()).time
+    return "${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}"
 }
 
 private fun DayOfWeek.asName(): String = weekDayNames[isoDayNumber - 1]

@@ -8,13 +8,15 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import kotlin.time.Clock
+import kotlin.time.Instant
 
 class SaveDayEntryUseCase(
     private val repository: DayEntryRepository,
     private val scoreCalculator: DayScoreCalculatorUseCase,
     private val currentDate: () -> LocalDate = {
         Clock.System.todayIn(TimeZone.currentSystemDefault())
-    }
+    },
+    private val currentInstant: () -> Instant = Clock.System::now
 ) {
     suspend operator fun invoke(
         metrics: DayMetrics,
@@ -36,7 +38,8 @@ class SaveDayEntryUseCase(
             metrics = metrics,
             overallScore = scoreCalculator(metrics),
             tags = cleanTags,
-            note = note.trim().takeIf(String::isNotEmpty)
+            note = note.trim().takeIf(String::isNotEmpty),
+            savedAt = currentInstant()
         )
 
         repository.upsertEntry(entry)
