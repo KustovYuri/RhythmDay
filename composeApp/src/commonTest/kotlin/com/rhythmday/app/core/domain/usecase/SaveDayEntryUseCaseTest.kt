@@ -61,6 +61,45 @@ class SaveDayEntryUseCaseTest {
         assertEquals(savedAt, savedEntry.savedAt)
         assertEquals(savedEntry, repository.observeEntries().first().single())
     }
+
+    @Test
+    fun updatesRequestedEntryWithoutChangingItsIdOrDate() = runTest {
+        val today = LocalDate(2026, 7, 20)
+        val historicalDate = LocalDate(2026, 7, 19)
+        val historicalEntry = DayEntry(
+            id = 9,
+            date = historicalDate,
+            metrics = DayMetrics(4, 4, 4, 4, 4, 4, 7),
+            overallScore = 4.1,
+            tags = listOf("Работа"),
+            note = null
+        )
+        val todayEntry = historicalEntry.copy(id = 10, date = today)
+        val repository = FakeMutableDayEntryRepository(listOf(historicalEntry, todayEntry))
+        val useCase = SaveDayEntryUseCase(
+            repository = repository,
+            scoreCalculator = DayScoreCalculatorUseCase(),
+            currentDate = { today }
+        )
+        val updatedMetrics = DayMetrics(9, 8, 8, 8, 7, 9, 2)
+
+        val updatedEntry = useCase(
+            metrics = updatedMetrics,
+            tags = listOf("Спорт"),
+            note = "Стало лучше",
+            entryId = historicalEntry.id
+        )
+
+        assertEquals(historicalEntry.id, updatedEntry.id)
+        assertEquals(historicalDate, updatedEntry.date)
+        assertEquals(updatedMetrics, updatedEntry.metrics)
+        assertEquals(listOf("Спорт"), updatedEntry.tags)
+        assertEquals("Стало лучше", updatedEntry.note)
+        assertEquals(
+            todayEntry,
+            repository.observeEntries().first().first { entry -> entry.id == todayEntry.id }
+        )
+    }
 }
 
 private class FakeMutableDayEntryRepository(

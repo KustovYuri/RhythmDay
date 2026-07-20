@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -86,6 +87,7 @@ private const val VoiceWaveformSampleIntervalMillis = 160L
 @Composable
 fun CreateEntryRoute(
     viewModel: CreateEntryViewModel,
+    entryId: Long?,
     contentPadding: PaddingValues,
     onBack: () -> Unit
 ) {
@@ -93,6 +95,10 @@ fun CreateEntryRoute(
     val speechTextRequester = rememberSpeechTextRequester(
         onTextRecognized = viewModel::onSpeechTextRecognized
     )
+
+    LaunchedEffect(viewModel, entryId) {
+        viewModel.prepareEntry(entryId)
+    }
 
     LaunchedEffect(state.isSaved) {
         if (state.isSaved) {
@@ -148,35 +154,46 @@ private fun CreateEntryScreen(
         item {
             CreateEntryHeader(onBack = onBack)
         }
-        item {
-            MetricsCard(
-                state = state,
-                onMetricChanged = onMetricChanged
-            )
-        }
-        item {
-            TagsCard(
-                state = state,
-                onTagClick = onTagClick,
-                onTagsExpandedChanged = onTagsExpandedChanged,
-                onAddTagClick = { showCustomTagDialog = true }
-            )
-        }
-        item {
-            DescriptionCard(
-                note = state.note,
-                onNoteChanged = onNoteChanged,
-                onSpeechInputClick = { showSpeechInputDialog = true }
-            )
-        }
-        item {
-            SaveSection(
-                enabled = state.canSave,
-                isSaving = state.isSaving,
-                errorMessage = state.errorMessage,
-                onSave = onSave,
-                modifier = Modifier.padding(top = 12.dp)
-            )
+        if (state.isLoading) {
+            item {
+                Box(
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 220.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = RhythmDayPalette.Teal)
+                }
+            }
+        } else {
+            item {
+                MetricsCard(
+                    state = state,
+                    onMetricChanged = onMetricChanged
+                )
+            }
+            item {
+                TagsCard(
+                    state = state,
+                    onTagClick = onTagClick,
+                    onTagsExpandedChanged = onTagsExpandedChanged,
+                    onAddTagClick = { showCustomTagDialog = true }
+                )
+            }
+            item {
+                DescriptionCard(
+                    note = state.note,
+                    onNoteChanged = onNoteChanged,
+                    onSpeechInputClick = { showSpeechInputDialog = true }
+                )
+            }
+            item {
+                SaveSection(
+                    enabled = state.canSave,
+                    isSaving = state.isSaving,
+                    errorMessage = state.errorMessage,
+                    onSave = onSave,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+            }
         }
     }
 

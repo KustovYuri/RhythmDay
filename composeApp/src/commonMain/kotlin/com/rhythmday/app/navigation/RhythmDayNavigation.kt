@@ -49,10 +49,12 @@ import androidx.savedstate.serialization.SavedStateConfiguration
 import com.rhythmday.app.core.designsystem.RhythmDayIcons
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
 import com.rhythmday.app.feature.createentry.presentation.CreateEntryRoute as CreateEntryScreenRoute
+import com.rhythmday.app.feature.entrydetails.presentation.EntryDetailsRoute as EntryDetailsScreenRoute
 import com.rhythmday.app.feature.home.presentation.HomeRoute
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -66,6 +68,7 @@ private val navigationStateConfiguration = SavedStateConfiguration {
             subclass(HomeRouteKey::class, HomeRouteKey.serializer())
             subclass(HistoryRoute::class, HistoryRoute.serializer())
             subclass(CreateEntryRoute::class, CreateEntryRoute.serializer())
+            subclass(EditEntryRoute::class, EditEntryRoute.serializer())
             subclass(AnalyticsRoute::class, AnalyticsRoute.serializer())
             subclass(AiRoute::class, AiRoute.serializer())
             subclass(BlitzRoute::class, BlitzRoute.serializer())
@@ -155,9 +158,15 @@ fun RhythmDayNavigation() {
         }
     }
 
-    val selectedTopLevelRoute = topLevelRoutes
-        .firstOrNull { destination -> destination.route == backStack.lastOrNull() }
-        ?.route
+    val currentRoute = backStack.lastOrNull() as? AppRoute
+    val selectedTopLevelRoute = when (currentRoute) {
+        is EntryDetailsRoute, is EditEntryRoute -> backStack
+            .dropLast(1)
+            .mapNotNull { route -> route as? AppRoute }
+            .lastOrNull { route -> route.topLevelIndex() != null }
+
+        else -> currentRoute?.takeIf { route -> route.topLevelIndex() != null }
+    }
 
     Scaffold(
         containerColor = RhythmDayPalette.Background,
@@ -196,6 +205,7 @@ fun RhythmDayNavigation() {
                         viewModel = koinViewModel(),
                         contentPadding = contentPadding,
                         onCreateEntry = { open(CreateEntryRoute) },
+                        onEditEntry = { entryId -> open(EditEntryRoute(entryId)) },
                         onStartBlitz = { open(BlitzRoute) },
                         onOpenHistory = { openTopLevel(HistoryRoute) },
                         onOpenAnalytics = { openTopLevel(AnalyticsRoute) },
@@ -208,7 +218,16 @@ fun RhythmDayNavigation() {
                 }
                 entry<CreateEntryRoute> {
                     CreateEntryScreenRoute(
-                        viewModel = koinViewModel(),
+                        viewModel = koinViewModel(key = "entry-form-create"),
+                        entryId = null,
+                        contentPadding = contentPadding,
+                        onBack = ::navigateBack
+                    )
+                }
+                entry<EditEntryRoute> { route ->
+                    CreateEntryScreenRoute(
+                        viewModel = koinViewModel(key = "entry-form-edit-${route.entryId}"),
+                        entryId = route.entryId,
                         contentPadding = contentPadding,
                         onBack = ::navigateBack
                     )
@@ -225,8 +244,16 @@ fun RhythmDayNavigation() {
                 entry<SettingsRoute> {
                     NestedPlaceholder("Настройки", ::navigateBack)
                 }
-                entry<EntryDetailsRoute> {
-                    NestedPlaceholder("Запись дня", ::navigateBack)
+                entry<EntryDetailsRoute> { route ->
+                    EntryDetailsScreenRoute(
+                        viewModel = koinViewModel(
+                            key = "entry-details-${route.entryId}",
+                            parameters = { parametersOf(route.entryId) }
+                        ),
+                        contentPadding = contentPadding,
+                        onBack = ::navigateBack,
+                        onEdit = { open(EditEntryRoute(route.entryId)) }
+                    )
                 }
             }
         )

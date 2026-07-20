@@ -21,11 +21,18 @@ class SaveDayEntryUseCase(
     suspend operator fun invoke(
         metrics: DayMetrics,
         tags: List<String>,
-        note: String
+        note: String,
+        entryId: Long? = null
     ): DayEntry {
         val today = currentDate()
         val entries = repository.observeEntries().first()
-        val existingEntry = entries.firstOrNull { entry -> entry.date == today }
+        val existingEntry = if (entryId == null) {
+            entries.firstOrNull { entry -> entry.date == today }
+        } else {
+            requireNotNull(entries.firstOrNull { entry -> entry.id == entryId }) {
+                "Entry with id $entryId was not found"
+            }
+        }
         val nextId = (entries.maxOfOrNull(DayEntry::id) ?: 0L) + 1L
         val cleanTags = tags
             .map(String::trim)
@@ -34,7 +41,7 @@ class SaveDayEntryUseCase(
 
         val entry = DayEntry(
             id = existingEntry?.id ?: nextId,
-            date = today,
+            date = existingEntry?.date ?: today,
             metrics = metrics,
             overallScore = scoreCalculator(metrics),
             tags = cleanTags,

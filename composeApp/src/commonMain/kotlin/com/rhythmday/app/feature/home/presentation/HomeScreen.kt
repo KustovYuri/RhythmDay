@@ -69,6 +69,7 @@ fun HomeRoute(
     viewModel: HomeViewModel,
     contentPadding: PaddingValues,
     onCreateEntry: () -> Unit,
+    onEditEntry: (Long) -> Unit,
     onStartBlitz: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenAnalytics: () -> Unit,
@@ -90,6 +91,7 @@ fun HomeRoute(
             dashboard = dashboard,
             contentPadding = contentPadding,
             onCreateEntry = onCreateEntry,
+            onEditEntry = onEditEntry,
             onStartBlitz = onStartBlitz,
             onOpenHistory = onOpenHistory,
             onOpenAnalytics = onOpenAnalytics,
@@ -115,6 +117,7 @@ private fun HomeScreen(
     dashboard: HomeDashboard,
     contentPadding: PaddingValues,
     onCreateEntry: () -> Unit,
+    onEditEntry: (Long) -> Unit,
     onStartBlitz: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenAnalytics: () -> Unit,
@@ -138,6 +141,7 @@ private fun HomeScreen(
             TodayCard(
                 entry = dashboard.todayEntry,
                 onCreateEntry = onCreateEntry,
+                onEditEntry = onEditEntry,
                 onStartBlitz = onStartBlitz,
                 onOpenHistory = onOpenHistory,
                 onOpenEntry = onOpenEntry
@@ -213,6 +217,7 @@ private fun HomeHeader(
 private fun TodayCard(
     entry: DayEntry?,
     onCreateEntry: () -> Unit,
+    onEditEntry: (Long) -> Unit,
     onStartBlitz: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenEntry: (Long) -> Unit
@@ -238,7 +243,11 @@ private fun TodayCard(
         if (entry == null) {
             EmptyTodayContent(onCreateEntry, onStartBlitz)
         } else {
-            FilledTodayContent(entry, onCreateEntry, onOpenHistory)
+            FilledTodayContent(
+                entry = entry,
+                onEdit = { onEditEntry(entry.id) },
+                onOpenHistory = onOpenHistory
+            )
         }
     }
 }

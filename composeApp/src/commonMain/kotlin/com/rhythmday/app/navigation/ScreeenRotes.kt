@@ -15,6 +15,9 @@ data object HistoryRoute : AppRoute
 data object CreateEntryRoute : AppRoute
 
 @Serializable
+data class EditEntryRoute(val entryId: Long) : AppRoute
+
+@Serializable
 data object AnalyticsRoute : AppRoute
 
 @Serializable

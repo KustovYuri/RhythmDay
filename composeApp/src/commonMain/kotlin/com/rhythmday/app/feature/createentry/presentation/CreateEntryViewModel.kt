@@ -2,15 +2,21 @@ package com.rhythmday.app.feature.createentry.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rhythmday.app.core.domain.model.DayEntry
 import com.rhythmday.app.core.domain.model.DayMetrics
+import com.rhythmday.app.core.domain.usecase.ObserveDayEntryUseCase
 import com.rhythmday.app.core.domain.usecase.SaveDayEntryUseCase
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class CreateEntryUiState(
+    val isLoading: Boolean = false,
     val energy: Int? = null,
     val mood: Int? = null,
     val wellbeing: Int? = null,
@@ -27,7 +33,7 @@ data class CreateEntryUiState(
     val errorMessage: String? = null
 ) {
     val canSave: Boolean
-        get() = !isSaving && listOf(
+        get() = !isLoading && !isSaving && listOf(
             energy,
             mood,
             wellbeing,
@@ -49,10 +55,39 @@ enum class CreateEntryMetric {
 }
 
 class CreateEntryViewModel(
-    private val saveDayEntryUseCase: SaveDayEntryUseCase
+    private val saveDayEntryUseCase: SaveDayEntryUseCase,
+    private val observeDayEntryUseCase: ObserveDayEntryUseCase
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(CreateEntryUiState())
     val uiState: StateFlow<CreateEntryUiState> = _uiState.asStateFlow()
+    private var editingEntryId: Long? = null
+    private var entryLoadJob: Job? = null
+
+    fun prepareEntry(entryId: Long?) {
+        entryLoadJob?.cancel()
+        editingEntryId = entryId
+
+        if (entryId == null) {
+            _uiState.value = CreateEntryUiState()
+            return
+        }
+
+        _uiState.value = CreateEntryUiState(isLoading = true)
+        entryLoadJob = viewModelScope.launch {
+            runCatching { observeDayEntryUseCase(entryId).first() }
+                .onSuccess { entry ->
+                    _uiState.value = entry?.toUiState() ?: CreateEntryUiState(
+                        errorMessage = "Запись не найдена"
+                    )
+                }
+                .onFailure {
+                    if (it is CancellationException) throw it
+                    _uiState.value = CreateEntryUiState(
+                        errorMessage = "Не удалось загрузить запись"
+                    )
+                }
+        }
+    }
 
     fun onMetricChanged(metric: CreateEntryMetric, value: Int) {
         val cleanValue = value.coerceIn(1, 10)
@@ -129,7 +164,8 @@ class CreateEntryViewModel(
                 saveDayEntryUseCase(
                     metrics = metrics,
                     tags = state.orderedSelectedTags(),
-                    note = state.note
+                    note = state.note,
+                    entryId = editingEntryId
                 )
             }.onSuccess {
                 _uiState.update { currentState ->
@@ -171,9 +207,22 @@ class CreateEntryViewModel(
     }
 
     private fun CreateEntryUiState.orderedSelectedTags(): List<String> =
-        (DefaultDayTags + customTags)
+        (DefaultDayTags + customTags + selectedTags)
             .distinct()
             .filter { tag -> tag in selectedTags }
+
+    private fun DayEntry.toUiState(): CreateEntryUiState = CreateEntryUiState(
+        energy = metrics.energy,
+        mood = metrics.mood,
+        wellbeing = metrics.wellbeing,
+        sleepQuality = metrics.sleepQuality,
+        mentalClarity = metrics.mentalClarity,
+        sociality = metrics.sociality,
+        stress = metrics.stress,
+        selectedTags = tags.toSet(),
+        customTags = tags.filterNot { tag -> tag in DefaultDayTags },
+        note = note.orEmpty()
+    )
 }
 
 val DefaultDayTags = listOf(

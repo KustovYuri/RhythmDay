@@ -1,16 +1,28 @@
 package com.rhythmday.app.feature.createentry.presentation
 
 import com.rhythmday.app.core.domain.model.DayEntry
+import com.rhythmday.app.core.domain.model.DayMetrics
 import com.rhythmday.app.core.domain.repository.DayEntryRepository
 import com.rhythmday.app.core.domain.usecase.DayScoreCalculatorUseCase
+import com.rhythmday.app.core.domain.usecase.ObserveDayEntryUseCase
 import com.rhythmday.app.core.domain.usecase.SaveDayEntryUseCase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class CreateEntryViewModelTest {
     @Test
     fun saveBecomesAvailableOnlyAfterEveryMetricIsSet() {
@@ -49,22 +61,67 @@ class CreateEntryViewModelTest {
         assertTrue(repository.savedEntries.isEmpty())
     }
 
+    @Test
+    fun loadsAndUpdatesRequestedEntry() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val originalEntry = DayEntry(
+                id = 9,
+                date = LocalDate(2026, 7, 19),
+                metrics = DayMetrics(4, 5, 6, 7, 8, 9, 3),
+                overallScore = 6.4,
+                tags = listOf("Спорт", "Медитация"),
+                note = "Исходный комментарий"
+            )
+            val repository = RecordingDayEntryRepository(listOf(originalEntry))
+            val viewModel = createViewModel(repository)
+
+            viewModel.prepareEntry(originalEntry.id)
+            advanceUntilIdle()
+
+            assertEquals(originalEntry.metrics.energy, viewModel.uiState.value.energy)
+            assertEquals(originalEntry.metrics.sleepQuality, viewModel.uiState.value.sleepQuality)
+            assertEquals(originalEntry.tags.toSet(), viewModel.uiState.value.selectedTags)
+            assertEquals(originalEntry.note, viewModel.uiState.value.note)
+
+            viewModel.onMetricChanged(CreateEntryMetric.ENERGY, 9)
+            viewModel.onNoteChanged("Обновленный комментарий")
+            viewModel.save()
+            advanceUntilIdle()
+
+            val updatedEntry = repository.savedEntries.single()
+            assertEquals(originalEntry.id, updatedEntry.id)
+            assertEquals(originalEntry.date, updatedEntry.date)
+            assertEquals(9, updatedEntry.metrics.energy)
+            assertEquals("Обновленный комментарий", updatedEntry.note)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
     private fun createViewModel(repository: DayEntryRepository): CreateEntryViewModel =
         CreateEntryViewModel(
-            SaveDayEntryUseCase(
+            saveDayEntryUseCase = SaveDayEntryUseCase(
                 repository = repository,
                 scoreCalculator = DayScoreCalculatorUseCase(),
                 currentDate = { LocalDate(2026, 7, 20) }
-            )
+            ),
+            observeDayEntryUseCase = ObserveDayEntryUseCase(repository)
         )
 }
 
-private class RecordingDayEntryRepository : DayEntryRepository {
+private class RecordingDayEntryRepository(
+    entries: List<DayEntry> = emptyList()
+) : DayEntryRepository {
+    private val entriesFlow = MutableStateFlow(entries)
     val savedEntries = mutableListOf<DayEntry>()
 
-    override fun observeEntries(): Flow<List<DayEntry>> = flowOf(emptyList())
+    override fun observeEntries(): Flow<List<DayEntry>> = entriesFlow
 
     override suspend fun upsertEntry(entry: DayEntry) {
         savedEntries += entry
+        entriesFlow.update { entries ->
+            entries.filterNot { currentEntry -> currentEntry.date == entry.date } + entry
+        }
     }
 }
