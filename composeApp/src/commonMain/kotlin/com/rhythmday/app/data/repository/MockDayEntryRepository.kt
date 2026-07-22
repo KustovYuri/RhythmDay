@@ -11,6 +11,7 @@ import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
+import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
 import kotlin.time.Clock
 
@@ -86,8 +87,85 @@ class MockDayEntryRepository(
                 metrics = DayMetrics(8, 7, 7, 7, 7, 8, 3),
                 tags = listOf("Спорт", "Хороший сон"),
                 note = "После тренировки было больше энергии, вечером спокойно отдохнул."
+            ),
+            entry(
+                id = 10,
+                date = today.dateInPreviousMonth(monthsAgo = 1, day = 4),
+                metrics = DayMetrics(7, 8, 7, 7, 6, 8, 3),
+                tags = listOf("Работа", "Прогулка"),
+                note = "После рабочего дня удалось переключиться на прогулке."
+            ),
+            entry(
+                id = 11,
+                date = today.dateInPreviousMonth(monthsAgo = 1, day = 12),
+                metrics = DayMetrics(4, 5, 5, 4, 3, 4, 8),
+                tags = listOf("Плохой сон", "Перегруз", "Тревога")
+            ),
+            entry(
+                id = 12,
+                date = today.dateInPreviousMonth(monthsAgo = 1, day = 20),
+                metrics = DayMetrics(8, 8, 8, 8, 7, 9, 2),
+                tags = listOf("Хороший сон", "Спорт", "Друзья"),
+                note = "Выспался, потренировался и хорошо провел вечер с друзьями."
+            ),
+            entry(
+                id = 13,
+                date = today.dateInPreviousMonth(monthsAgo = 1, day = 27),
+                metrics = DayMetrics(7, 7, 7, 8, 7, 7, 4),
+                tags = listOf("Работа", "Прогулка", "Дом", "Спокойствие", "Продуктивность")
+            ),
+            entry(
+                id = 14,
+                date = today.dateInPreviousMonth(monthsAgo = 2, day = 6),
+                metrics = DayMetrics(6, 6, 7, 6, 5, 6, 5),
+                tags = listOf("Дом", "Отдых")
+            ),
+            entry(
+                id = 15,
+                date = today.dateInPreviousMonth(monthsAgo = 2, day = 15),
+                metrics = DayMetrics(9, 8, 8, 8, 8, 9, 2),
+                tags = listOf("Путешествие", "Люди", "Прогулка"),
+                note = "Новая обстановка дала много энергии и впечатлений."
+            ),
+            entry(
+                id = 16,
+                date = today.dateInPreviousMonth(monthsAgo = 2, day = 24),
+                metrics = DayMetrics(5, 5, 6, 5, 4, 5, 7),
+                tags = listOf("Работа", "Конфликт", "Перегруз")
+            ),
+            entry(
+                id = 17,
+                date = today.dateInPreviousMonth(monthsAgo = 3, day = 3),
+                metrics = DayMetrics(8, 8, 8, 7, 7, 8, 3),
+                tags = listOf("Творчество", "Спокойствие")
+            ),
+            entry(
+                id = 18,
+                date = today.dateInPreviousMonth(monthsAgo = 3, day = 14),
+                metrics = DayMetrics(3, 4, 4, 3, 3, 4, 9),
+                tags = listOf("Болезнь", "Плохой сон"),
+                note = "Почти весь день ушел на отдых и восстановление."
+            ),
+            entry(
+                id = 19,
+                date = today.dateInPreviousMonth(monthsAgo = 3, day = 25),
+                metrics = DayMetrics(7, 7, 8, 7, 6, 8, 3),
+                tags = listOf("Семья", "Дом", "Хороший сон")
+            ),
+            entry(
+                id = 20,
+                date = today.dateInPreviousMonth(monthsAgo = 4, day = 8),
+                metrics = DayMetrics(6, 7, 6, 6, 7, 7, 4),
+                tags = listOf("Учёба", "Продуктивность")
+            ),
+            entry(
+                id = 21,
+                date = today.dateInPreviousMonth(monthsAgo = 4, day = 19),
+                metrics = DayMetrics(8, 9, 8, 8, 8, 9, 2),
+                tags = listOf("Восстановление", "Отдых", "Прогулка"),
+                note = "Спокойный день без спешки хорошо восстановил силы."
             )
-        )
+        ).distinctBy(DayEntry::date).sortedBy(DayEntry::date)
     }
 
     private fun entry(
@@ -106,4 +184,10 @@ class MockDayEntryRepository(
     )
 
     private fun LocalDate.daysAgo(days: Int): LocalDate = minus(days, DateTimeUnit.DAY)
+
+    private fun LocalDate.dateInPreviousMonth(monthsAgo: Int, day: Int): LocalDate {
+        val monthStart = LocalDate(year, month, 1).minus(monthsAgo, DateTimeUnit.MONTH)
+        val lastDay = monthStart.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY).day
+        return LocalDate(monthStart.year, monthStart.month, day.coerceAtMost(lastDay))
+    }
 }

@@ -50,6 +50,7 @@ import com.rhythmday.app.core.designsystem.RhythmDayIcons
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
 import com.rhythmday.app.feature.createentry.presentation.CreateEntryRoute as CreateEntryScreenRoute
 import com.rhythmday.app.feature.entrydetails.presentation.EntryDetailsRoute as EntryDetailsScreenRoute
+import com.rhythmday.app.feature.history.presentation.HistoryRoute as HistoryScreenRoute
 import com.rhythmday.app.feature.home.presentation.HomeRoute
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
@@ -214,7 +215,11 @@ fun RhythmDayNavigation() {
                     )
                 }
                 entry<HistoryRoute> {
-                    PlaceholderContent("История", contentPadding)
+                    HistoryScreenRoute(
+                        viewModel = koinViewModel(),
+                        contentPadding = contentPadding,
+                        onOpenEntry = { entryId -> open(EntryDetailsRoute(entryId)) }
+                    )
                 }
                 entry<CreateEntryRoute> {
                     CreateEntryScreenRoute(

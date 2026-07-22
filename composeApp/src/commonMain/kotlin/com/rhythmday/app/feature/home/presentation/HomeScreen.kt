@@ -186,7 +186,8 @@ private fun HomeHeader(
                 contentDescription = "Открыть меню профиля",
                 onClick = { menuExpanded = true },
                 size = 42.dp,
-                iconSize = 21.dp
+                iconSize = 21.dp,
+                tint = RhythmDayPalette.TealDark
             )
             DropdownMenu(
                 expanded = menuExpanded,
