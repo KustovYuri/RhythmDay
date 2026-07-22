@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -62,6 +63,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -69,6 +71,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
+import com.rhythmday.app.core.domain.model.DAY_TITLE_MAX_LENGTH
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -125,6 +128,7 @@ fun CreateEntryRoute(
         onTagClick = viewModel::onTagClick,
         onTagsExpandedChanged = viewModel::onTagsExpandedChanged,
         onCustomTagAdded = viewModel::onCustomTagAdded,
+        onTitleChanged = viewModel::onTitleChanged,
         onNoteChanged = viewModel::onNoteChanged,
         speechInputActive = speechTextRequester.isListening,
         speechAudioLevel = speechTextRequester.audioLevel,
@@ -144,6 +148,7 @@ private fun CreateEntryScreen(
     onTagClick: (String) -> Unit,
     onTagsExpandedChanged: (Boolean) -> Unit,
     onCustomTagAdded: (String) -> Unit,
+    onTitleChanged: (String) -> Unit,
     onNoteChanged: (String) -> Unit,
     speechInputActive: Boolean,
     speechAudioLevel: Float,
@@ -193,6 +198,12 @@ private fun CreateEntryScreen(
                     onTagClick = onTagClick,
                     onTagsExpandedChanged = onTagsExpandedChanged,
                     onAddTagClick = { showCustomTagDialog = true }
+                )
+            }
+            item {
+                DayTitleCard(
+                    title = state.title,
+                    onTitleChanged = onTitleChanged
                 )
             }
             item {
@@ -499,6 +510,41 @@ private fun ExpandTagsChip(
 }
 
 @Composable
+private fun DayTitleCard(
+    title: String,
+    onTitleChanged: (String) -> Unit
+) {
+    PrototypeCard {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Название дня",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = RhythmDayPalette.Ink
+                )
+                Text(
+                    text = "${title.length}/$DAY_TITLE_MAX_LENGTH",
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = RhythmDayPalette.Muted
+                )
+            }
+            SingleLineInput(
+                value = title,
+                onValueChange = onTitleChanged,
+                placeholder = "Например, день новых идей",
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+            )
+        }
+    }
+}
+
+@Composable
 private fun DescriptionCard(
     note: String,
     onNoteChanged: (String) -> Unit,
@@ -700,6 +746,7 @@ private fun MultilineInput(
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             textStyle = TextStyle(
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
@@ -832,6 +879,7 @@ private fun SingleLineInput(
             value = value,
             onValueChange = onValueChange,
             singleLine = true,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             textStyle = TextStyle(
                 fontSize = 14.sp,
                 lineHeight = 18.sp,

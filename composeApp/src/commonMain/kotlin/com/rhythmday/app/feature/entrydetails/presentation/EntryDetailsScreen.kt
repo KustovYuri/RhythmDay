@@ -186,12 +186,22 @@ private fun DayHero(entry: DayEntry) {
             verticalAlignment = Alignment.Top
         ) {
             Column(modifier = Modifier.weight(1f)) {
+                entry.title?.let { title ->
+                    Text(
+                        text = title,
+                        fontSize = 18.sp,
+                        lineHeight = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
                 Text(
                     text = entry.date.asFullDate(),
-                    fontSize = 18.sp,
-                    lineHeight = 22.sp,
+                    fontSize = if (entry.title == null) 18.sp else 13.sp,
+                    lineHeight = if (entry.title == null) 22.sp else 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = if (entry.title == null) Color.White else Color.White.copy(alpha = 0.78f),
+                    modifier = Modifier.padding(top = if (entry.title == null) 0.dp else 2.dp)
                 )
                 Box(
                     modifier = Modifier

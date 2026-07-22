@@ -3,6 +3,8 @@ package com.rhythmday.app.core.domain.model
 import kotlinx.datetime.LocalDate
 import kotlin.time.Instant
 
+const val DAY_TITLE_MAX_LENGTH = 40
+
 data class DayMetrics(
     val energy: Int,
     val mood: Int,
@@ -25,6 +27,7 @@ data class DayEntry(
     val metrics: DayMetrics,
     val overallScore: Double,
     val tags: List<String>,
-    val note: String?,
+    val title: String? = null,
+    val note: String? = null,
     val savedAt: Instant? = null
 )

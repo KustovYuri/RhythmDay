@@ -413,12 +413,22 @@ private fun EntryRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
+            entry.title?.let { title ->
+                Text(
+                    text = title,
+                    fontSize = 14.sp,
+                    lineHeight = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = RhythmDayPalette.Ink
+                )
+            }
             Text(
                 text = entry.date.asEntryDate(),
-                fontSize = 14.sp,
-                lineHeight = 17.sp,
+                fontSize = if (entry.title == null) 14.sp else 12.sp,
+                lineHeight = if (entry.title == null) 17.sp else 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = RhythmDayPalette.Ink
+                color = if (entry.title == null) RhythmDayPalette.Ink else RhythmDayPalette.Muted,
+                modifier = Modifier.padding(top = if (entry.title == null) 0.dp else 2.dp)
             )
             if (entry.tags.isNotEmpty()) {
                 FlowRow(

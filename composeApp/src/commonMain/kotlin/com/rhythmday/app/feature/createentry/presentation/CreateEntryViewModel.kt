@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rhythmday.app.core.domain.model.DayEntry
 import com.rhythmday.app.core.domain.model.DayMetrics
+import com.rhythmday.app.core.domain.model.DAY_TITLE_MAX_LENGTH
 import com.rhythmday.app.core.domain.usecase.ObserveDayEntryUseCase
 import com.rhythmday.app.core.domain.usecase.SaveDayEntryUseCase
 import kotlinx.coroutines.CancellationException
@@ -29,6 +30,7 @@ data class CreateEntryUiState(
     val selectedTags: Set<String> = emptySet(),
     val customTags: List<String> = emptyList(),
     val tagsExpanded: Boolean = false,
+    val title: String = "",
     val note: String = "",
     val isSaving: Boolean = false,
     val isSaved: Boolean = false,
@@ -142,6 +144,12 @@ class CreateEntryViewModel(
         _uiState.update { state -> state.copy(note = note) }
     }
 
+    fun onTitleChanged(title: String) {
+        _uiState.update { state ->
+            state.copy(title = title.take(DAY_TITLE_MAX_LENGTH))
+        }
+    }
+
     fun onSpeechTextRecognized(text: String) {
         val cleanText = text.trim()
         if (cleanText.isEmpty()) return
@@ -165,6 +173,7 @@ class CreateEntryViewModel(
             runCatching {
                 saveDayEntryUseCase(
                     metrics = metrics,
+                    title = state.title,
                     tags = state.orderedSelectedTags(),
                     note = state.note,
                     entryId = editingEntryId
@@ -224,6 +233,7 @@ class CreateEntryViewModel(
         stress = metrics.stress,
         selectedTags = tags.toSet(),
         customTags = tags.filterNot { tag -> tag in DefaultDayTags },
+        title = title.orEmpty(),
         note = note.orEmpty()
     )
 }

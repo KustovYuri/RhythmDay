@@ -48,6 +48,7 @@ class SaveDayEntryUseCaseTest {
 
         val savedEntry = useCase(
             metrics = metrics,
+            title = "  Сильный день  ",
             tags = listOf(" Работа ", "", "Работа", "Спорт"),
             note = "  Хороший день  "
         )
@@ -56,6 +57,7 @@ class SaveDayEntryUseCaseTest {
         assertEquals(today, savedEntry.date)
         assertEquals(metrics, savedEntry.metrics)
         assertEquals(DayScoreCalculatorUseCase()(metrics), savedEntry.overallScore)
+        assertEquals("Сильный день", savedEntry.title)
         assertEquals(listOf("Работа", "Спорт"), savedEntry.tags)
         assertEquals("Хороший день", savedEntry.note)
         assertEquals(savedAt, savedEntry.savedAt)
@@ -85,6 +87,7 @@ class SaveDayEntryUseCaseTest {
 
         val updatedEntry = useCase(
             metrics = updatedMetrics,
+            title = "Стало легче",
             tags = listOf("Спорт"),
             note = "Стало лучше",
             entryId = historicalEntry.id
@@ -93,6 +96,7 @@ class SaveDayEntryUseCaseTest {
         assertEquals(historicalEntry.id, updatedEntry.id)
         assertEquals(historicalDate, updatedEntry.date)
         assertEquals(updatedMetrics, updatedEntry.metrics)
+        assertEquals("Стало легче", updatedEntry.title)
         assertEquals(listOf("Спорт"), updatedEntry.tags)
         assertEquals("Стало лучше", updatedEntry.note)
         assertEquals(

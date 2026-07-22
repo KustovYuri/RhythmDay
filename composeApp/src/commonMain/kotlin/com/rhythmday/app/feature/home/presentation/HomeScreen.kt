@@ -582,19 +582,29 @@ private fun LatestEntryCard(
                     style = MaterialTheme.typography.titleLarge,
                     color = RhythmDayPalette.Ink
                 )
+                entry.title?.let { title ->
+                    Text(
+                        text = title,
+                        fontSize = 15.sp,
+                        lineHeight = 19.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = RhythmDayPalette.Ink,
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
+                }
                 Text(
                     text = entry.date.asRelativeDate(currentDate),
                     fontSize = 12.sp,
                     lineHeight = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = RhythmDayPalette.Muted,
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(top = if (entry.title == null) 4.dp else 2.dp)
                 )
                 Text(
                     text = "Энергия ${entry.metrics.energy}, настроение ${entry.metrics.mood}, стресс ${entry.metrics.stress}.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = RhythmDayPalette.Muted,
-                    modifier = Modifier.padding(top = 2.dp)
+                    modifier = Modifier.padding(top = if (entry.title == null) 2.dp else 4.dp)
                 )
                 FlowRow(
                     modifier = Modifier.padding(top = 10.dp),

@@ -41,6 +41,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
@@ -48,6 +49,7 @@ import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import com.rhythmday.app.core.designsystem.RhythmDayIcons
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
+import com.rhythmday.app.core.domain.repository.DayEntryRepository
 import com.rhythmday.app.feature.createentry.presentation.CreateEntryRoute as CreateEntryScreenRoute
 import com.rhythmday.app.feature.entrydetails.presentation.EntryDetailsRoute as EntryDetailsScreenRoute
 import com.rhythmday.app.feature.history.presentation.HistoryRoute as HistoryScreenRoute
@@ -59,6 +61,10 @@ import org.koin.core.parameter.parametersOf
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
+import org.koin.compose.koinInject
+import kotlin.time.Clock
 
 private const val ScreenTransitionDurationMillis = 220
 private const val ScreenTransitionSettlingDelayMillis = 32L
@@ -97,6 +103,9 @@ private data class TopLevelDestination(
 fun RhythmDayNavigation() {
     val backStack = rememberNavBackStack(navigationStateConfiguration, HomeRouteKey)
     val coroutineScope = rememberCoroutineScope()
+    val dayEntryRepository = koinInject<DayEntryRepository>()
+    val entriesFlow = remember(dayEntryRepository) { dayEntryRepository.observeEntries() }
+    val entries by entriesFlow.collectAsStateWithLifecycle(emptyList())
     var navigationDirection by remember { mutableStateOf(1) }
     var pendingTopLevelRoute by remember { mutableStateOf<AppRoute?>(null) }
     var topLevelNavigationJob by remember { mutableStateOf<Job?>(null) }
@@ -147,9 +156,36 @@ fun RhythmDayNavigation() {
         }
     }
 
+    fun openCreateEntry() {
+        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+        val todayEntryId = entries.firstOrNull { entry -> entry.date == today }?.id
+        if (todayEntryId == null) {
+            openTopLevel(CreateEntryRoute)
+            return
+        }
+
+        val detailsRoute = EntryDetailsRoute(todayEntryId)
+        if (backStack.lastOrNull() == detailsRoute) return
+
+        navigateToTopLevel(CreateEntryRoute)
+        updateNavigationDirection(detailsRoute)
+        backStack.add(detailsRoute)
+    }
+
     fun navigateBack() {
         if (backStack.size > 1) {
             val previousRoute = backStack[backStack.lastIndex - 1] as AppRoute
+            if (
+                backStack.size > 2 &&
+                backStack.lastOrNull() is EntryDetailsRoute &&
+                previousRoute == CreateEntryRoute
+            ) {
+                val targetRoute = backStack[backStack.lastIndex - 2] as AppRoute
+                updateNavigationDirection(targetRoute)
+                backStack.removeLast()
+                backStack.removeLast()
+                return
+            }
             if (topLevelNavigationJob?.isActive == true && previousRoute.topLevelIndex() != null) {
                 pendingTopLevelRoute = previousRoute
                 return
@@ -173,7 +209,12 @@ fun RhythmDayNavigation() {
         containerColor = RhythmDayPalette.Background,
         bottomBar = {
             selectedTopLevelRoute?.let { selectedRoute ->
-                BottomNavigation(selectedRoute, ::openTopLevel)
+                BottomNavigation(
+                    selectedRoute = selectedRoute,
+                    onNavigate = { route ->
+                        if (route == CreateEntryRoute) openCreateEntry() else openTopLevel(route)
+                    }
+                )
             }
         }
     ) { contentPadding ->
@@ -205,7 +246,7 @@ fun RhythmDayNavigation() {
                     HomeRoute(
                         viewModel = koinViewModel(),
                         contentPadding = contentPadding,
-                        onCreateEntry = { open(CreateEntryRoute) },
+                        onCreateEntry = ::openCreateEntry,
                         onEditEntry = { entryId -> open(EditEntryRoute(entryId)) },
                         onStartBlitz = { open(BlitzRoute) },
                         onOpenHistory = { openTopLevel(HistoryRoute) },

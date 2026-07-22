@@ -2,6 +2,7 @@ package com.rhythmday.app.feature.createentry.presentation
 
 import com.rhythmday.app.core.domain.model.DayEntry
 import com.rhythmday.app.core.domain.model.DayMetrics
+import com.rhythmday.app.core.domain.model.DAY_TITLE_MAX_LENGTH
 import com.rhythmday.app.core.domain.repository.DayEntryRepository
 import com.rhythmday.app.core.domain.usecase.DayScoreCalculatorUseCase
 import com.rhythmday.app.core.domain.usecase.ObserveDayEntryUseCase
@@ -62,6 +63,15 @@ class CreateEntryViewModelTest {
     }
 
     @Test
+    fun titleIsLimitedBeforeSaving() {
+        val viewModel = createViewModel(RecordingDayEntryRepository())
+
+        viewModel.onTitleChanged("а".repeat(DAY_TITLE_MAX_LENGTH + 5))
+
+        assertEquals(DAY_TITLE_MAX_LENGTH, viewModel.uiState.value.title.length)
+    }
+
+    @Test
     fun loadsAndUpdatesRequestedEntry() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
@@ -71,6 +81,7 @@ class CreateEntryViewModelTest {
                 metrics = DayMetrics(4, 5, 6, 7, 8, 9, 3),
                 overallScore = 6.4,
                 tags = listOf("Спорт", "Медитация"),
+                title = "Спокойное воскресенье",
                 note = "Исходный комментарий"
             )
             val repository = RecordingDayEntryRepository(listOf(originalEntry))
@@ -80,12 +91,14 @@ class CreateEntryViewModelTest {
             advanceUntilIdle()
 
             assertEquals(originalEntry.date, viewModel.uiState.value.entryDate)
+            assertEquals(originalEntry.title, viewModel.uiState.value.title)
             assertEquals(originalEntry.metrics.energy, viewModel.uiState.value.energy)
             assertEquals(originalEntry.metrics.sleepQuality, viewModel.uiState.value.sleepQuality)
             assertEquals(originalEntry.tags.toSet(), viewModel.uiState.value.selectedTags)
             assertEquals(originalEntry.note, viewModel.uiState.value.note)
 
             viewModel.onMetricChanged(CreateEntryMetric.ENERGY, 9)
+            viewModel.onTitleChanged("Новый ритм")
             viewModel.onNoteChanged("Обновленный комментарий")
             viewModel.save()
             advanceUntilIdle()
@@ -93,6 +106,7 @@ class CreateEntryViewModelTest {
             val updatedEntry = repository.savedEntries.single()
             assertEquals(originalEntry.id, updatedEntry.id)
             assertEquals(originalEntry.date, updatedEntry.date)
+            assertEquals("Новый ритм", updatedEntry.title)
             assertEquals(9, updatedEntry.metrics.energy)
             assertEquals("Обновленный комментарий", updatedEntry.note)
         } finally {

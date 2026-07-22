@@ -2,6 +2,7 @@ package com.rhythmday.app.core.domain.usecase
 
 import com.rhythmday.app.core.domain.model.DayEntry
 import com.rhythmday.app.core.domain.model.DayMetrics
+import com.rhythmday.app.core.domain.model.DAY_TITLE_MAX_LENGTH
 import com.rhythmday.app.core.domain.repository.DayEntryRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.LocalDate
@@ -20,6 +21,7 @@ class SaveDayEntryUseCase(
 ) {
     suspend operator fun invoke(
         metrics: DayMetrics,
+        title: String,
         tags: List<String>,
         note: String,
         entryId: Long? = null
@@ -45,6 +47,7 @@ class SaveDayEntryUseCase(
             metrics = metrics,
             overallScore = scoreCalculator(metrics),
             tags = cleanTags,
+            title = title.trim().take(DAY_TITLE_MAX_LENGTH).takeIf(String::isNotEmpty),
             note = note.trim().takeIf(String::isNotEmpty),
             savedAt = currentInstant()
         )

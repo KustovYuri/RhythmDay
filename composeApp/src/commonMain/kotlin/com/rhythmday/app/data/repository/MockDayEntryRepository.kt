@@ -37,12 +37,14 @@ class MockDayEntryRepository(
                 id = 1,
                 date = today.daysAgo(12),
                 metrics = DayMetrics(8, 8, 8, 8, 7, 9, 2),
+                title = "Лёгкий день",
                 tags = listOf("Прогулка", "Хороший сон")
             ),
             entry(
                 id = 2,
                 date = today.daysAgo(10),
                 metrics = DayMetrics(4, 5, 5, 4, 4, 4, 8),
+                title = "День без сил",
                 tags = listOf("Плохой сон", "Много работы")
             ),
             entry(
@@ -85,6 +87,7 @@ class MockDayEntryRepository(
                 id = 9,
                 date = today.daysAgo(1),
                 metrics = DayMetrics(8, 7, 7, 7, 7, 8, 3),
+                title = "Вечер после тренировки",
                 tags = listOf("Спорт", "Хороший сон"),
                 note = "После тренировки было больше энергии, вечером спокойно отдохнул."
             ),
@@ -92,6 +95,7 @@ class MockDayEntryRepository(
                 id = 10,
                 date = today.dateInPreviousMonth(monthsAgo = 1, day = 4),
                 metrics = DayMetrics(7, 8, 7, 7, 6, 8, 3),
+                title = "Перезагрузка после работы",
                 tags = listOf("Работа", "Прогулка"),
                 note = "После рабочего дня удалось переключиться на прогулке."
             ),
@@ -105,6 +109,7 @@ class MockDayEntryRepository(
                 id = 12,
                 date = today.dateInPreviousMonth(monthsAgo = 1, day = 20),
                 metrics = DayMetrics(8, 8, 8, 8, 7, 9, 2),
+                title = "День с друзьями",
                 tags = listOf("Хороший сон", "Спорт", "Друзья"),
                 note = "Выспался, потренировался и хорошо провел вечер с друзьями."
             ),
@@ -124,6 +129,7 @@ class MockDayEntryRepository(
                 id = 15,
                 date = today.dateInPreviousMonth(monthsAgo = 2, day = 15),
                 metrics = DayMetrics(9, 8, 8, 8, 8, 9, 2),
+                title = "Новая обстановка",
                 tags = listOf("Путешествие", "Люди", "Прогулка"),
                 note = "Новая обстановка дала много энергии и впечатлений."
             ),
@@ -143,6 +149,7 @@ class MockDayEntryRepository(
                 id = 18,
                 date = today.dateInPreviousMonth(monthsAgo = 3, day = 14),
                 metrics = DayMetrics(3, 4, 4, 3, 3, 4, 9),
+                title = "День восстановления",
                 tags = listOf("Болезнь", "Плохой сон"),
                 note = "Почти весь день ушел на отдых и восстановление."
             ),
@@ -162,6 +169,7 @@ class MockDayEntryRepository(
                 id = 21,
                 date = today.dateInPreviousMonth(monthsAgo = 4, day = 19),
                 metrics = DayMetrics(8, 9, 8, 8, 8, 9, 2),
+                title = "Спокойствие без спешки",
                 tags = listOf("Восстановление", "Отдых", "Прогулка"),
                 note = "Спокойный день без спешки хорошо восстановил силы."
             )
@@ -172,6 +180,7 @@ class MockDayEntryRepository(
         id: Long,
         date: LocalDate,
         metrics: DayMetrics,
+        title: String? = null,
         tags: List<String>,
         note: String? = null
     ) = DayEntry(
@@ -180,6 +189,7 @@ class MockDayEntryRepository(
         metrics = metrics,
         overallScore = scoreCalculator.invoke(metrics),
         tags = tags,
+        title = title,
         note = note
     )
 
