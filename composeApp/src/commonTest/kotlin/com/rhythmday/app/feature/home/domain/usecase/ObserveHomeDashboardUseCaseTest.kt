@@ -10,6 +10,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class ObserveHomeDashboardUseCaseTest {
     @Test
@@ -32,7 +33,20 @@ class ObserveHomeDashboardUseCaseTest {
         assertEquals(5, dashboard.weekSummary.completedDays)
         assertEquals(6.7, dashboard.weekSummary.averageScore)
         assertEquals(4, dashboard.weekSummary.bestEntry?.id)
-        assertEquals(5, dashboard.latestEntry?.id)
+        assertEquals(5, dashboard.previousEntry?.id)
+    }
+
+    @Test
+    fun doesNotExposeTodayEntryAsPreviousEntry() = runTest {
+        val today = LocalDate(2026, 7, 18)
+        val useCase = ObserveHomeDashboardUseCase(
+            repository = FakeDayEntryRepository(listOf(entry(1, today, 8.0))),
+            currentDate = { today }
+        )
+
+        val dashboard = useCase().first()
+
+        assertNull(dashboard.previousEntry)
     }
 
     private fun entry(id: Long, date: LocalDate, score: Double) = DayEntry(

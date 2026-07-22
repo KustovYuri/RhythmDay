@@ -13,5 +13,5 @@ data class HomeDashboard(
     val currentDate: LocalDate,
     val todayEntry: DayEntry?,
     val weekSummary: WeekSummary,
-    val latestEntry: DayEntry?
+    val previousEntry: DayEntry?
 )

@@ -39,7 +39,7 @@ class ObserveHomeDashboardUseCase(
                     ?.let { round(it * 10) / 10 },
                 bestEntry = weekEntries.maxByOrNull(DayEntry::overallScore)
             ),
-            latestEntry = entries
+            previousEntry = entries
                 .filter { it.date < today }
                 .maxByOrNull(DayEntry::date)
         )

@@ -419,7 +419,7 @@ private fun EntryRow(
                     fontSize = 14.sp,
                     lineHeight = 17.sp,
                     fontWeight = FontWeight.Bold,
-                    color = RhythmDayPalette.Ink
+                    color = RhythmDayPalette.TealDark
                 )
             }
             Text(

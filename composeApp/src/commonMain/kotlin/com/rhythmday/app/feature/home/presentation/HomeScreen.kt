@@ -150,9 +150,9 @@ private fun HomeScreen(
         item {
             WeekCard(dashboard.weekSummary, onOpenAnalytics)
         }
-        dashboard.latestEntry?.let { entry ->
+        dashboard.previousEntry?.let { entry ->
             item {
-                LatestEntryCard(
+                PreviousEntryCard(
                     entry = entry,
                     currentDate = dashboard.currentDate,
                     onClick = { onOpenEntry(entry.id) }
@@ -565,86 +565,87 @@ private fun WeekStat(
 }
 
 @Composable
-private fun LatestEntryCard(
+private fun PreviousEntryCard(
     entry: DayEntry,
     currentDate: LocalDate,
     onClick: () -> Unit
 ) {
     PrototypeCard(onClick = onClick) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(14.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Последняя запись",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = RhythmDayPalette.Ink
-                )
-                entry.title?.let { title ->
+        Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+            Text(
+                text = "Предыдущая запись",
+                style = MaterialTheme.typography.titleLarge,
+                color = RhythmDayPalette.Ink
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    entry.title?.let { title ->
+                        Text(
+                            text = title,
+                            fontSize = 15.sp,
+                            lineHeight = 19.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = RhythmDayPalette.TealDark
+                        )
+                    }
                     Text(
-                        text = title,
-                        fontSize = 15.sp,
-                        lineHeight = 19.sp,
+                        text = entry.date.asRelativeDate(currentDate),
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = RhythmDayPalette.Ink,
-                        modifier = Modifier.padding(top = 6.dp)
+                        color = RhythmDayPalette.Muted,
+                        modifier = Modifier.padding(top = if (entry.title == null) 0.dp else 2.dp)
                     )
-                }
-                Text(
-                    text = entry.date.asRelativeDate(currentDate),
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = RhythmDayPalette.Muted,
-                    modifier = Modifier.padding(top = if (entry.title == null) 4.dp else 2.dp)
-                )
-                Text(
-                    text = "Энергия ${entry.metrics.energy}, настроение ${entry.metrics.mood}, стресс ${entry.metrics.stress}.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = RhythmDayPalette.Muted,
-                    modifier = Modifier.padding(top = if (entry.title == null) 2.dp else 4.dp)
-                )
-                FlowRow(
-                    modifier = Modifier.padding(top = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    entry.tags.forEach { tag ->
-                        Box(
-                            modifier = Modifier
-                                .heightIn(min = 26.dp)
-                                .clip(CardShape)
-                                .background(TagBackground)
-                                .padding(horizontal = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = tag,
-                                fontSize = 12.sp,
-                                lineHeight = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = RhythmDayPalette.TealDark
-                            )
+                    Text(
+                        text = "Энергия ${entry.metrics.energy}, настроение ${entry.metrics.mood}, стресс ${entry.metrics.stress}.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = RhythmDayPalette.Muted,
+                        modifier = Modifier.padding(top = if (entry.title == null) 2.dp else 4.dp)
+                    )
+                    FlowRow(
+                        modifier = Modifier.padding(top = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        entry.tags.forEach { tag ->
+                            Box(
+                                modifier = Modifier
+                                    .heightIn(min = 26.dp)
+                                    .clip(CardShape)
+                                    .background(TagBackground)
+                                    .padding(horizontal = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = tag,
+                                    fontSize = 12.sp,
+                                    lineHeight = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = RhythmDayPalette.TealDark
+                                )
+                            }
                         }
                     }
                 }
-            }
-            Box(
-                modifier = Modifier
-                    .size(54.dp)
-                    .clip(CardShape)
-                    .background(scoreColor(entry.overallScore)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = entry.overallScore.asScore(),
-                    fontSize = 22.sp,
-                    lineHeight = 24.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color.White
-                )
+                Box(
+                    modifier = Modifier
+                        .size(54.dp)
+                        .clip(CardShape)
+                        .background(scoreColor(entry.overallScore)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = entry.overallScore.asScore(),
+                        fontSize = 22.sp,
+                        lineHeight = 24.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White
+                    )
+                }
             }
         }
     }
