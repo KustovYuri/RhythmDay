@@ -79,6 +79,7 @@ class CreateEntryViewModelTest {
             viewModel.prepareEntry(originalEntry.id)
             advanceUntilIdle()
 
+            assertEquals(originalEntry.date, viewModel.uiState.value.entryDate)
             assertEquals(originalEntry.metrics.energy, viewModel.uiState.value.energy)
             assertEquals(originalEntry.metrics.sleepQuality, viewModel.uiState.value.sleepQuality)
             assertEquals(originalEntry.tags.toSet(), viewModel.uiState.value.selectedTags)

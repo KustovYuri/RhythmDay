@@ -14,9 +14,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDate
 
 data class CreateEntryUiState(
     val isLoading: Boolean = false,
+    val entryDate: LocalDate? = null,
     val energy: Int? = null,
     val mood: Int? = null,
     val wellbeing: Int? = null,
@@ -212,6 +214,7 @@ class CreateEntryViewModel(
             .filter { tag -> tag in selectedTags }
 
     private fun DayEntry.toUiState(): CreateEntryUiState = CreateEntryUiState(
+        entryDate = date,
         energy = metrics.energy,
         mood = metrics.mood,
         wellbeing = metrics.wellbeing,

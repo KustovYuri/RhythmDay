@@ -225,6 +225,7 @@ fun RhythmDayNavigation() {
                     CreateEntryScreenRoute(
                         viewModel = koinViewModel(key = "entry-form-create"),
                         entryId = null,
+                        showBackButton = false,
                         contentPadding = contentPadding,
                         onBack = ::navigateBack
                     )
@@ -233,6 +234,7 @@ fun RhythmDayNavigation() {
                     CreateEntryScreenRoute(
                         viewModel = koinViewModel(key = "entry-form-edit-${route.entryId}"),
                         entryId = route.entryId,
+                        showBackButton = true,
                         contentPadding = contentPadding,
                         onBack = ::navigateBack
                     )

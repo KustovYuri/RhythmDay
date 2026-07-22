@@ -69,12 +69,19 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
+import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.isoDayNumber
+import kotlinx.datetime.todayIn
 import kotlin.math.roundToInt
+import kotlin.time.Clock
 
 private val CardShape = RoundedCornerShape(8.dp)
 private val ControlBackground = Color(0xFFEDF3F5)
 private val FieldBackground = Color(0xFFF0F4F7)
 private val SelectedTagBackground = Color(0xFFCBE8E3)
+private val InactiveSliderThumb = Color(0xFF5FAFA6)
 private val LowPillBackground = Color(0xFFF7EBE8)
 private val LowPillText = Color(0xFF8C4D45)
 private val MediumPillBackground = Color(0xFFFFF4D8)
@@ -88,6 +95,7 @@ private const val VoiceWaveformSampleIntervalMillis = 160L
 fun CreateEntryRoute(
     viewModel: CreateEntryViewModel,
     entryId: Long?,
+    showBackButton: Boolean,
     contentPadding: PaddingValues,
     onBack: () -> Unit
 ) {
@@ -109,6 +117,8 @@ fun CreateEntryRoute(
 
     CreateEntryScreen(
         state = state,
+        today = Clock.System.todayIn(TimeZone.currentSystemDefault()),
+        showBackButton = showBackButton,
         contentPadding = contentPadding,
         onBack = onBack,
         onMetricChanged = viewModel::onMetricChanged,
@@ -126,6 +136,8 @@ fun CreateEntryRoute(
 @Composable
 private fun CreateEntryScreen(
     state: CreateEntryUiState,
+    today: LocalDate,
+    showBackButton: Boolean,
     contentPadding: PaddingValues,
     onBack: () -> Unit,
     onMetricChanged: (CreateEntryMetric, Int) -> Unit,
@@ -152,7 +164,12 @@ private fun CreateEntryScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            CreateEntryHeader(onBack = onBack)
+            CreateEntryHeader(
+                date = state.entryDate ?: today,
+                today = today,
+                showBackButton = showBackButton,
+                onBack = onBack
+            )
         }
         if (state.isLoading) {
             item {
@@ -224,20 +241,29 @@ private fun CreateEntryScreen(
 }
 
 @Composable
-private fun CreateEntryHeader(onBack: () -> Unit) {
+private fun CreateEntryHeader(
+    date: LocalDate,
+    today: LocalDate,
+    showBackButton: Boolean,
+    onBack: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        CompactIconButton(
-            icon = Icons.AutoMirrored.Outlined.ArrowBack,
-            contentDescription = "Назад",
-            onClick = onBack,
-            size = 42.dp,
-            iconSize = 20.dp,
-            tint = RhythmDayPalette.Ink,
-            background = RhythmDayPalette.Panel
-        )
+        if (showBackButton) {
+            CompactIconButton(
+                icon = Icons.AutoMirrored.Outlined.ArrowBack,
+                contentDescription = "Назад",
+                onClick = onBack,
+                size = 42.dp,
+                iconSize = 20.dp,
+                tint = RhythmDayPalette.Ink,
+                background = RhythmDayPalette.Panel
+            )
+        } else {
+            Spacer(modifier = Modifier.size(42.dp))
+        }
         Column(
             modifier = Modifier.weight(1f),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -251,7 +277,7 @@ private fun CreateEntryHeader(onBack: () -> Unit) {
                 textAlign = TextAlign.Center
             )
             Text(
-                text = "Сегодня",
+                text = date.asRelativeDate(today),
                 fontSize = 11.sp,
                 lineHeight = 14.sp,
                 fontWeight = FontWeight.Bold,
@@ -338,7 +364,7 @@ private fun CompactSliderThumb(visible: Boolean) {
             .size(18.dp)
             .clip(CircleShape)
             .background(
-                if (visible) RhythmDayPalette.Teal else RhythmDayPalette.Muted
+                if (visible) RhythmDayPalette.Teal else InactiveSliderThumb
             )
     )
 }
@@ -369,7 +395,7 @@ private fun ScorePill(
     inverted: Boolean
 ) {
     val colors = if (value == null) {
-        PillColors(ControlBackground, RhythmDayPalette.Muted)
+        PillColors(ControlBackground, RhythmDayPalette.TealDark)
     } else {
         pillColors(value = value, inverted = inverted)
     }
@@ -956,3 +982,39 @@ private fun pillColors(
         else -> PillColors(LowPillBackground, LowPillText)
     }
 }
+
+private fun LocalDate.asRelativeDate(today: LocalDate): String {
+    val prefix = when (today.toEpochDays() - toEpochDays()) {
+        0L -> "Сегодня"
+        1L -> "Вчера"
+        else -> dayOfWeek.asName()
+    }
+    return "$prefix, $day ${monthNames[month.ordinal]}"
+}
+
+private fun DayOfWeek.asName(): String = weekdayNames[isoDayNumber - 1]
+
+private val weekdayNames = listOf(
+    "Понедельник",
+    "Вторник",
+    "Среда",
+    "Четверг",
+    "Пятница",
+    "Суббота",
+    "Воскресенье"
+)
+
+private val monthNames = listOf(
+    "января",
+    "февраля",
+    "марта",
+    "апреля",
+    "мая",
+    "июня",
+    "июля",
+    "августа",
+    "сентября",
+    "октября",
+    "ноября",
+    "декабря"
+)
