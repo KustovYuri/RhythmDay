@@ -50,6 +50,7 @@ import androidx.savedstate.serialization.SavedStateConfiguration
 import com.rhythmday.app.core.designsystem.RhythmDayIcons
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
 import com.rhythmday.app.core.domain.repository.DayEntryRepository
+import com.rhythmday.app.feature.analytics.presentation.AnalyticsRoute as AnalyticsScreenRoute
 import com.rhythmday.app.feature.createentry.presentation.CreateEntryRoute as CreateEntryScreenRoute
 import com.rhythmday.app.feature.entrydetails.presentation.EntryDetailsRoute as EntryDetailsScreenRoute
 import com.rhythmday.app.feature.history.presentation.HistoryRoute as HistoryScreenRoute
@@ -281,7 +282,11 @@ fun RhythmDayNavigation() {
                     )
                 }
                 entry<AnalyticsRoute> {
-                    PlaceholderContent("Аналитика", contentPadding)
+                    AnalyticsScreenRoute(
+                        viewModel = koinViewModel(),
+                        contentPadding = contentPadding,
+                        onOpenEntry = { entryId -> open(EntryDetailsRoute(entryId)) }
+                    )
                 }
                 entry<AiRoute> {
                     PlaceholderContent("Функционал в разработке", contentPadding)

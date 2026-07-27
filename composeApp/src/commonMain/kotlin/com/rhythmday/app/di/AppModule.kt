@@ -5,6 +5,7 @@ import com.rhythmday.app.core.domain.usecase.DayScoreCalculatorUseCase
 import com.rhythmday.app.core.domain.usecase.ObserveDayEntryUseCase
 import com.rhythmday.app.core.domain.usecase.SaveDayEntryUseCase
 import com.rhythmday.app.data.repository.MockDayEntryRepository
+import com.rhythmday.app.feature.analytics.presentation.AnalyticsViewModel
 import com.rhythmday.app.feature.createentry.presentation.CreateEntryViewModel
 import com.rhythmday.app.feature.entrydetails.presentation.EntryDetailsViewModel
 import com.rhythmday.app.feature.history.presentation.HistoryViewModel
@@ -20,6 +21,7 @@ val appModule = module {
     single { ObserveHomeDashboardUseCase(get()) }
     single { ObserveDayEntryUseCase(get()) }
     viewModel { CreateEntryViewModel(get(), get()) }
+    viewModel { AnalyticsViewModel(get()) }
     viewModel { HistoryViewModel(get()) }
     viewModel { parameters ->
         EntryDetailsViewModel(
