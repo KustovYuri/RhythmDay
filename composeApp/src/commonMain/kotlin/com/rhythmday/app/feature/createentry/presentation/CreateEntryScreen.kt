@@ -1104,15 +1104,12 @@ private fun metricItems(state: CreateEntryUiState): List<MetricItem> = listOf(
 )
 
 private fun CreateEntryUiState.visibleTags(): List<String> {
-    val allTags = (DefaultDayTags + customTags)
-        .distinct()
-        .filterNot { tag -> tag in removedTags }
     return if (tagsExpanded) {
-        allTags
+        availableTags
     } else {
-        val visiblePrimaryTags = PrimaryDayTags.filterNot { tag -> tag in removedTags }
-        (visiblePrimaryTags + allTags.filter { tag ->
-            tag in selectedTags && tag !in visiblePrimaryTags
+        val primaryTags = availableTags.take(5)
+        (primaryTags + availableTags.filter { tag ->
+            tag in selectedTags && tag !in primaryTags
         })
             .distinct()
     }

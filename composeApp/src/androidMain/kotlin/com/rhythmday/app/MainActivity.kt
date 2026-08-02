@@ -9,7 +9,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { App() }
+        val database = (application as RhythmDayApplication).database
+        setContent { App(database) }
     }
 }
 

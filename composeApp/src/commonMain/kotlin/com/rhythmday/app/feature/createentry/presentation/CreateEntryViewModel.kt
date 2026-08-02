@@ -7,6 +7,7 @@ import com.rhythmday.app.core.domain.model.DayMetrics
 import com.rhythmday.app.core.domain.model.DAY_METRIC_MAX_VALUE
 import com.rhythmday.app.core.domain.model.DAY_METRIC_MIN_VALUE
 import com.rhythmday.app.core.domain.model.DAY_TITLE_MAX_LENGTH
+import com.rhythmday.app.core.domain.repository.DayTagRepository
 import com.rhythmday.app.core.domain.usecase.ObserveDayEntryUseCase
 import com.rhythmday.app.core.domain.usecase.SaveDayEntryUseCase
 import kotlinx.coroutines.CancellationException
@@ -14,6 +15,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -31,8 +34,7 @@ data class CreateEntryUiState(
     val sociality: Double? = null,
     val stress: Double? = null,
     val selectedTags: Set<String> = emptySet(),
-    val customTags: List<String> = emptyList(),
-    val removedTags: Set<String> = emptySet(),
+    val availableTags: List<String> = emptyList(),
     val tagsExpanded: Boolean = false,
     val title: String = "",
     val note: String = "",
@@ -64,33 +66,43 @@ enum class CreateEntryMetric {
 
 class CreateEntryViewModel(
     private val saveDayEntryUseCase: SaveDayEntryUseCase,
-    private val observeDayEntryUseCase: ObserveDayEntryUseCase
+    private val observeDayEntryUseCase: ObserveDayEntryUseCase,
+    private val dayTagRepository: DayTagRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(CreateEntryUiState())
     val uiState: StateFlow<CreateEntryUiState> = _uiState.asStateFlow()
     private var editingEntryId: Long? = null
     private var entryLoadJob: Job? = null
+    private var tagsLoadJob: Job? = null
 
     fun prepareEntry(entryId: Long?) {
+        observeAvailableTags()
         entryLoadJob?.cancel()
         editingEntryId = entryId
+        val availableTags = _uiState.value.availableTags
 
         if (entryId == null) {
-            _uiState.value = CreateEntryUiState()
+            _uiState.value = CreateEntryUiState(availableTags = availableTags)
             return
         }
 
-        _uiState.value = CreateEntryUiState(isLoading = true)
+        _uiState.value = CreateEntryUiState(
+            isLoading = true,
+            availableTags = availableTags
+        )
         entryLoadJob = viewModelScope.launch {
             runCatching { observeDayEntryUseCase(entryId).first() }
                 .onSuccess { entry ->
-                    _uiState.value = entry?.toUiState() ?: CreateEntryUiState(
-                        errorMessage = "Запись не найдена"
-                    )
+                    _uiState.value = entry?.toUiState(_uiState.value.availableTags)
+                        ?: CreateEntryUiState(
+                            availableTags = _uiState.value.availableTags,
+                            errorMessage = "Запись не найдена"
+                        )
                 }
                 .onFailure {
                     if (it is CancellationException) throw it
                     _uiState.value = CreateEntryUiState(
+                        availableTags = _uiState.value.availableTags,
                         errorMessage = "Не удалось загрузить запись"
                     )
                 }
@@ -116,6 +128,7 @@ class CreateEntryViewModel(
 
     fun onTagClick(tag: String) {
         _uiState.update { state ->
+            if (tag !in state.availableTags) return@update state
             val nextTags = if (tag in state.selectedTags) {
                 state.selectedTags - tag
             } else {
@@ -133,9 +146,12 @@ class CreateEntryViewModel(
         _uiState.update { state ->
             state.copy(
                 selectedTags = state.selectedTags - tag,
-                customTags = state.customTags - tag,
-                removedTags = state.removedTags + tag
+                availableTags = state.availableTags - tag
             )
+        }
+        viewModelScope.launch {
+            runCatching { dayTagRepository.deleteTag(tag) }
+                .onFailure { showTagOperationError() }
         }
     }
 
@@ -144,16 +160,14 @@ class CreateEntryViewModel(
         if (cleanTag.isEmpty()) return
 
         _uiState.update { state ->
-            val knownTags = DefaultDayTags + state.customTags
             state.copy(
-                customTags = if (cleanTag in knownTags) {
-                    state.customTags
-                } else {
-                    state.customTags + cleanTag
-                },
-                selectedTags = state.selectedTags + cleanTag,
-                removedTags = state.removedTags - cleanTag
+                availableTags = (state.availableTags + cleanTag).distinct(),
+                selectedTags = state.selectedTags + cleanTag
             )
+        }
+        viewModelScope.launch {
+            runCatching { dayTagRepository.addTag(cleanTag) }
+                .onFailure { showTagOperationError() }
         }
     }
 
@@ -235,47 +249,41 @@ class CreateEntryViewModel(
     }
 
     private fun CreateEntryUiState.orderedSelectedTags(): List<String> =
-        (DefaultDayTags + customTags + selectedTags)
+        (availableTags + selectedTags)
             .distinct()
             .filter { tag -> tag in selectedTags }
 
-    private fun DayEntry.toUiState(): CreateEntryUiState = CreateEntryUiState(
-        entryDate = date,
-        energy = metrics.energy,
-        mood = metrics.mood,
-        wellbeing = metrics.wellbeing,
-        sleepQuality = metrics.sleepQuality,
-        mentalClarity = metrics.mentalClarity,
-        sociality = metrics.sociality,
-        stress = metrics.stress,
-        selectedTags = tags.toSet(),
-        customTags = tags.filterNot { tag -> tag in DefaultDayTags },
-        title = title.orEmpty(),
-        note = note.orEmpty()
-    )
+    private fun DayEntry.toUiState(availableTags: List<String>): CreateEntryUiState =
+        CreateEntryUiState(
+            entryDate = date,
+            energy = metrics.energy,
+            mood = metrics.mood,
+            wellbeing = metrics.wellbeing,
+            sleepQuality = metrics.sleepQuality,
+            mentalClarity = metrics.mentalClarity,
+            sociality = metrics.sociality,
+            stress = metrics.stress,
+            selectedTags = tags.toSet(),
+            availableTags = availableTags,
+            title = title.orEmpty(),
+            note = note.orEmpty()
+        )
+
+    private fun observeAvailableTags() {
+        if (tagsLoadJob != null) return
+
+        tagsLoadJob = viewModelScope.launch {
+            dayTagRepository.observeTags()
+                .catch { showTagOperationError() }
+                .collect { tags ->
+                    _uiState.update { state -> state.copy(availableTags = tags) }
+                }
+        }
+    }
+
+    private fun showTagOperationError() {
+        _uiState.update { state ->
+            state.copy(errorMessage = "Не удалось обновить теги")
+        }
+    }
 }
-
-val DefaultDayTags = listOf(
-    "Работа",
-    "Прогулка",
-    "Спорт",
-    "Плохой сон",
-    "Друзья",
-    "Болезнь",
-    "Конфликт",
-    "Отдых",
-    "Хороший сон",
-    "Дом",
-    "Учёба",
-    "Семья",
-    "Тревога",
-    "Спокойствие",
-    "Продуктивность",
-    "Перегруз",
-    "Восстановление",
-    "Творчество",
-    "Путешествие",
-    "Люди"
-)
-
-val PrimaryDayTags = DefaultDayTags.take(5)

@@ -4,6 +4,7 @@ import com.rhythmday.app.core.domain.model.DayEntry
 import com.rhythmday.app.core.domain.model.DayMetrics
 import com.rhythmday.app.core.domain.model.DAY_TITLE_MAX_LENGTH
 import com.rhythmday.app.core.domain.repository.DayEntryRepository
+import com.rhythmday.app.core.domain.repository.DayTagRepository
 import com.rhythmday.app.core.domain.usecase.DayScoreCalculatorUseCase
 import com.rhythmday.app.core.domain.usecase.ObserveDayEntryUseCase
 import com.rhythmday.app.core.domain.usecase.SaveDayEntryUseCase
@@ -11,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -90,15 +92,28 @@ class CreateEntryViewModelTest {
     }
 
     @Test
-    fun deletingTagRemovesItFromAvailableAndSelectedTags() {
-        val viewModel = createViewModel(RecordingDayEntryRepository())
-        viewModel.onCustomTagAdded("Медитация")
+    fun deletingTagRemovesItFromDatabaseAndSelectedTags() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val tagRepository = RecordingDayTagRepository(listOf("Работа"))
+            val viewModel = createViewModel(
+                repository = RecordingDayEntryRepository(),
+                tagRepository = tagRepository
+            )
+            viewModel.prepareEntry(null)
+            advanceUntilIdle()
+            viewModel.onCustomTagAdded("Медитация")
+            advanceUntilIdle()
 
-        viewModel.onTagDeleted("Медитация")
+            viewModel.onTagDeleted("Медитация")
+            advanceUntilIdle()
 
-        assertFalse("Медитация" in viewModel.uiState.value.selectedTags)
-        assertFalse("Медитация" in viewModel.uiState.value.customTags)
-        assertTrue("Медитация" in viewModel.uiState.value.removedTags)
+            assertFalse("Медитация" in viewModel.uiState.value.selectedTags)
+            assertFalse("Медитация" in viewModel.uiState.value.availableTags)
+            assertFalse("Медитация" in tagRepository.observeTags().first())
+        } finally {
+            Dispatchers.resetMain()
+        }
     }
 
     @Test
@@ -144,15 +159,35 @@ class CreateEntryViewModelTest {
         }
     }
 
-    private fun createViewModel(repository: DayEntryRepository): CreateEntryViewModel =
+    private fun createViewModel(
+        repository: DayEntryRepository,
+        tagRepository: DayTagRepository = RecordingDayTagRepository()
+    ): CreateEntryViewModel =
         CreateEntryViewModel(
             saveDayEntryUseCase = SaveDayEntryUseCase(
                 repository = repository,
                 scoreCalculator = DayScoreCalculatorUseCase(),
                 currentDate = { LocalDate(2026, 7, 20) }
             ),
-            observeDayEntryUseCase = ObserveDayEntryUseCase(repository)
+            observeDayEntryUseCase = ObserveDayEntryUseCase(repository),
+            dayTagRepository = tagRepository
         )
+}
+
+private class RecordingDayTagRepository(
+    tags: List<String> = emptyList()
+) : DayTagRepository {
+    private val tagsFlow = MutableStateFlow(tags)
+
+    override fun observeTags(): Flow<List<String>> = tagsFlow
+
+    override suspend fun addTag(tag: String) {
+        tagsFlow.update { tags -> (tags + tag).distinct() }
+    }
+
+    override suspend fun deleteTag(tag: String) {
+        tagsFlow.update { tags -> tags - tag }
+    }
 }
 
 private class RecordingDayEntryRepository(

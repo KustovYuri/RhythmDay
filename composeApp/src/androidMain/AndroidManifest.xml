@@ -8,6 +8,7 @@
     </queries>
 
     <application
+        android:name=".RhythmDayApplication"
         android:allowBackup="true"
         android:label="RhythmDay"
         android:supportsRtl="true"
