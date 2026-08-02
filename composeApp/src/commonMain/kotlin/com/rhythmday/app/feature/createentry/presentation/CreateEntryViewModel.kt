@@ -32,6 +32,7 @@ data class CreateEntryUiState(
     val stress: Double? = null,
     val selectedTags: Set<String> = emptySet(),
     val customTags: List<String> = emptyList(),
+    val removedTags: Set<String> = emptySet(),
     val tagsExpanded: Boolean = false,
     val title: String = "",
     val note: String = "",
@@ -128,6 +129,16 @@ class CreateEntryViewModel(
         _uiState.update { state -> state.copy(tagsExpanded = expanded) }
     }
 
+    fun onTagDeleted(tag: String) {
+        _uiState.update { state ->
+            state.copy(
+                selectedTags = state.selectedTags - tag,
+                customTags = state.customTags - tag,
+                removedTags = state.removedTags + tag
+            )
+        }
+    }
+
     fun onCustomTagAdded(tag: String) {
         val cleanTag = tag.trim()
         if (cleanTag.isEmpty()) return
@@ -140,7 +151,8 @@ class CreateEntryViewModel(
                 } else {
                     state.customTags + cleanTag
                 },
-                selectedTags = state.selectedTags + cleanTag
+                selectedTags = state.selectedTags + cleanTag,
+                removedTags = state.removedTags - cleanTag
             )
         }
     }

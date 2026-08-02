@@ -90,6 +90,18 @@ class CreateEntryViewModelTest {
     }
 
     @Test
+    fun deletingTagRemovesItFromAvailableAndSelectedTags() {
+        val viewModel = createViewModel(RecordingDayEntryRepository())
+        viewModel.onCustomTagAdded("Медитация")
+
+        viewModel.onTagDeleted("Медитация")
+
+        assertFalse("Медитация" in viewModel.uiState.value.selectedTags)
+        assertFalse("Медитация" in viewModel.uiState.value.customTags)
+        assertTrue("Медитация" in viewModel.uiState.value.removedTags)
+    }
+
+    @Test
     fun loadsAndUpdatesRequestedEntry() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {

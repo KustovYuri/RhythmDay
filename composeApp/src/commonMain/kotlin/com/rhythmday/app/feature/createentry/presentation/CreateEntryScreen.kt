@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -128,6 +129,7 @@ fun CreateEntryRoute(
         onBack = onBack,
         onMetricChanged = viewModel::onMetricChanged,
         onTagClick = viewModel::onTagClick,
+        onTagDeleted = viewModel::onTagDeleted,
         onTagsExpandedChanged = viewModel::onTagsExpandedChanged,
         onCustomTagAdded = viewModel::onCustomTagAdded,
         onTitleChanged = viewModel::onTitleChanged,
@@ -148,6 +150,7 @@ private fun CreateEntryScreen(
     onBack: () -> Unit,
     onMetricChanged: (CreateEntryMetric, Double) -> Unit,
     onTagClick: (String) -> Unit,
+    onTagDeleted: (String) -> Unit,
     onTagsExpandedChanged: (Boolean) -> Unit,
     onCustomTagAdded: (String) -> Unit,
     onTitleChanged: (String) -> Unit,
@@ -159,6 +162,7 @@ private fun CreateEntryScreen(
 ) {
     var showCustomTagDialog by remember { mutableStateOf(false) }
     var showSpeechInputDialog by remember { mutableStateOf(false) }
+    var tagPendingDeletion by remember { mutableStateOf<String?>(null) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -198,6 +202,7 @@ private fun CreateEntryScreen(
                 TagsCard(
                     state = state,
                     onTagClick = onTagClick,
+                    onTagLongClick = { tag -> tagPendingDeletion = tag },
                     onTagsExpandedChanged = onTagsExpandedChanged,
                     onAddTagClick = { showCustomTagDialog = true }
                 )
@@ -233,6 +238,17 @@ private fun CreateEntryScreen(
             onConfirm = { tag ->
                 onCustomTagAdded(tag)
                 showCustomTagDialog = false
+            }
+        )
+    }
+
+    tagPendingDeletion?.let { tag ->
+        DeleteTagDialog(
+            tag = tag,
+            onDismiss = { tagPendingDeletion = null },
+            onConfirm = {
+                onTagDeleted(tag)
+                tagPendingDeletion = null
             }
         )
     }
@@ -435,6 +451,7 @@ private fun ScorePill(
 private fun TagsCard(
     state: CreateEntryUiState,
     onTagClick: (String) -> Unit,
+    onTagLongClick: (String) -> Unit,
     onTagsExpandedChanged: (Boolean) -> Unit,
     onAddTagClick: () -> Unit
 ) {
@@ -459,7 +476,8 @@ private fun TagsCard(
                     TagChip(
                         text = tag,
                         selected = tag in state.selectedTags,
-                        onClick = { onTagClick(tag) }
+                        onClick = { onTagClick(tag) },
+                        onLongClick = { onTagLongClick(tag) }
                     )
                 }
                 ExpandTagsChip(
@@ -475,14 +493,20 @@ private fun TagsCard(
 private fun TagChip(
     text: String,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .height(34.dp)
             .clip(CardShape)
             .background(if (selected) SelectedTagBackground else FieldBackground)
-            .clickable(role = Role.Button, onClick = onClick)
+            .combinedClickable(
+                role = Role.Button,
+                onClick = onClick,
+                onLongClick = onLongClick,
+                onLongClickLabel = "Удалить тег"
+            )
             .padding(horizontal = 10.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -817,6 +841,74 @@ private fun SaveSection(
 }
 
 @Composable
+private fun DeleteTagDialog(
+    tag: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(0.9f).widthIn(max = 318.dp),
+            shape = CardShape,
+            color = RhythmDayPalette.Panel
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Удалить тег: $tag",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = RhythmDayPalette.Ink
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    DialogActionButton(
+                        text = "Отмена",
+                        background = ControlBackground,
+                        contentColor = RhythmDayPalette.Ink,
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f)
+                    )
+                    DialogActionButton(
+                        text = "Удалить",
+                        background = LowPillBackground,
+                        contentColor = LowPillText,
+                        onClick = onConfirm,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DialogActionButton(
+    text: String,
+    background: Color,
+    contentColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .height(38.dp)
+            .clip(CardShape)
+            .background(background)
+            .clickable(role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            fontSize = 13.sp,
+            lineHeight = 16.sp,
+            fontWeight = FontWeight.Bold,
+            color = contentColor
+        )
+    }
+}
+
+@Composable
 private fun CustomTagDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit
@@ -1012,11 +1104,16 @@ private fun metricItems(state: CreateEntryUiState): List<MetricItem> = listOf(
 )
 
 private fun CreateEntryUiState.visibleTags(): List<String> {
-    val allTags = (DefaultDayTags + customTags).distinct()
+    val allTags = (DefaultDayTags + customTags)
+        .distinct()
+        .filterNot { tag -> tag in removedTags }
     return if (tagsExpanded) {
         allTags
     } else {
-        (PrimaryDayTags + allTags.filter { tag -> tag in selectedTags && tag !in PrimaryDayTags })
+        val visiblePrimaryTags = PrimaryDayTags.filterNot { tag -> tag in removedTags }
+        (visiblePrimaryTags + allTags.filter { tag ->
+            tag in selectedTags && tag !in visiblePrimaryTags
+        })
             .distinct()
     }
 }
