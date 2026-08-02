@@ -37,13 +37,13 @@ class SaveDayEntryUseCaseTest {
             currentInstant = { savedAt }
         )
         val metrics = DayMetrics(
-            energy = 7,
-            mood = 6,
-            wellbeing = 7,
-            mentalClarity = 6,
-            sociality = 6,
-            sleepQuality = 8,
-            stress = 4
+            energy = 7.4,
+            mood = 6.2,
+            wellbeing = 7.1,
+            mentalClarity = 6.8,
+            sociality = 6.3,
+            sleepQuality = 8.5,
+            stress = 4.2
         )
 
         val savedEntry = useCase(

@@ -71,6 +71,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
+import com.rhythmday.app.core.domain.model.DAY_METRIC_MAX_VALUE
+import com.rhythmday.app.core.domain.model.DAY_METRIC_MIN_VALUE
 import com.rhythmday.app.core.domain.model.DAY_TITLE_MAX_LENGTH
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -144,7 +146,7 @@ private fun CreateEntryScreen(
     showBackButton: Boolean,
     contentPadding: PaddingValues,
     onBack: () -> Unit,
-    onMetricChanged: (CreateEntryMetric, Int) -> Unit,
+    onMetricChanged: (CreateEntryMetric, Double) -> Unit,
     onTagClick: (String) -> Unit,
     onTagsExpandedChanged: (Boolean) -> Unit,
     onCustomTagAdded: (String) -> Unit,
@@ -304,7 +306,7 @@ private fun CreateEntryHeader(
 @Composable
 private fun MetricsCard(
     state: CreateEntryUiState,
-    onMetricChanged: (CreateEntryMetric, Int) -> Unit
+    onMetricChanged: (CreateEntryMetric, Double) -> Unit
 ) {
     PrototypeCard {
         Column(
@@ -325,7 +327,7 @@ private fun MetricsCard(
 @OptIn(ExperimentalMaterial3Api::class)
 private fun MetricSliderBlock(
     item: MetricItem,
-    onValueChange: (Int) -> Unit
+    onValueChange: (Double) -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
@@ -342,10 +344,10 @@ private fun MetricSliderBlock(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Slider(
-                value = item.value?.toFloat() ?: 1f,
-                onValueChange = { value -> onValueChange(value.roundToInt().coerceIn(1, 10)) },
-                valueRange = 1f..10f,
-                steps = 8,
+                value = item.value?.toFloat() ?: DAY_METRIC_MIN_VALUE.toFloat(),
+                onValueChange = { value -> onValueChange(value.asMetricValue()) },
+                valueRange = DAY_METRIC_MIN_VALUE.toFloat()..DAY_METRIC_MAX_VALUE.toFloat(),
+                steps = 98,
                 interactionSource = interactionSource,
                 thumb = { CompactSliderThumb(visible = item.value != null) },
                 track = { sliderState ->
@@ -402,7 +404,7 @@ private fun CompactSliderTrack(progress: Float) {
 
 @Composable
 private fun ScorePill(
-    value: Int?,
+    value: Double?,
     inverted: Boolean
 ) {
     val colors = if (value == null) {
@@ -420,7 +422,7 @@ private fun ScorePill(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = value?.toString() ?: "—",
+            text = value?.asMetricLabel() ?: "—",
             fontSize = 16.sp,
             lineHeight = 18.sp,
             fontWeight = FontWeight.Bold,
@@ -990,7 +992,7 @@ private fun CompactIconButton(
 private data class MetricItem(
     val metric: CreateEntryMetric,
     val label: String,
-    val value: Int?,
+    val value: Double?,
     val inverted: Boolean = false
 )
 
@@ -1020,14 +1022,31 @@ private fun CreateEntryUiState.visibleTags(): List<String> {
 }
 
 private fun pillColors(
-    value: Int,
+    value: Double,
     inverted: Boolean
 ): PillColors {
-    val levelValue = if (inverted) 11 - value else value
+    val levelValue = if (inverted) {
+        DAY_METRIC_MIN_VALUE + DAY_METRIC_MAX_VALUE - value
+    } else {
+        value
+    }
     return when {
-        levelValue >= 8 -> PillColors(HighPillBackground, HighPillText)
-        levelValue >= 5 -> PillColors(MediumPillBackground, MediumPillText)
+        levelValue >= 8.0 -> PillColors(HighPillBackground, HighPillText)
+        levelValue >= 5.0 -> PillColors(MediumPillBackground, MediumPillText)
         else -> PillColors(LowPillBackground, LowPillText)
+    }
+}
+
+private fun Float.asMetricValue(): Double =
+    ((this * 10f).roundToInt() / 10.0)
+        .coerceIn(DAY_METRIC_MIN_VALUE, DAY_METRIC_MAX_VALUE)
+
+private fun Double.asMetricLabel(): String {
+    val tenths = (this * 10.0).roundToInt()
+    return if (tenths % 10 == 0) {
+        (tenths / 10).toString()
+    } else {
+        "${tenths / 10}.${tenths % 10}"
     }
 }
 

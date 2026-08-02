@@ -1,6 +1,8 @@
 package com.rhythmday.app.core.domain.usecase
 
 import com.rhythmday.app.core.domain.model.DayMetrics
+import com.rhythmday.app.core.domain.model.DAY_METRIC_MAX_VALUE
+import com.rhythmday.app.core.domain.model.DAY_METRIC_MIN_VALUE
 import kotlin.math.round
 
 class DayScoreCalculatorUseCase {
@@ -17,7 +19,13 @@ class DayScoreCalculatorUseCase {
         return round(score * 10) / 10
     }
 
-    private fun normalize(value: Int): Double = (value - 1) * 10.0 / 9.0
+    private fun normalize(value: Double): Double =
+        (value - DAY_METRIC_MIN_VALUE) * DAY_METRIC_MAX_VALUE / METRIC_RANGE
 
-    private fun normalizeStress(stress: Int): Double = (10 - stress) * 10.0 / 9.0
+    private fun normalizeStress(stress: Double): Double =
+        (DAY_METRIC_MAX_VALUE - stress) * DAY_METRIC_MAX_VALUE / METRIC_RANGE
+
+    private companion object {
+        const val METRIC_RANGE = DAY_METRIC_MAX_VALUE - DAY_METRIC_MIN_VALUE
+    }
 }

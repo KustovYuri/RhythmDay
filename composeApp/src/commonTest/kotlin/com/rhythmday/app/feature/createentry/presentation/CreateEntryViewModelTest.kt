@@ -30,13 +30,13 @@ class CreateEntryViewModelTest {
         val repository = RecordingDayEntryRepository()
         val viewModel = createViewModel(repository)
         val values = listOf(
-            CreateEntryMetric.ENERGY to 7,
-            CreateEntryMetric.MOOD to 6,
-            CreateEntryMetric.WELLBEING to 7,
-            CreateEntryMetric.SLEEP_QUALITY to 8,
-            CreateEntryMetric.MENTAL_CLARITY to 6,
-            CreateEntryMetric.SOCIALITY to 6,
-            CreateEntryMetric.STRESS to 4
+            CreateEntryMetric.ENERGY to 7.0,
+            CreateEntryMetric.MOOD to 6.0,
+            CreateEntryMetric.WELLBEING to 7.0,
+            CreateEntryMetric.SLEEP_QUALITY to 8.0,
+            CreateEntryMetric.MENTAL_CLARITY to 6.0,
+            CreateEntryMetric.SOCIALITY to 6.0,
+            CreateEntryMetric.STRESS to 4.0
         )
 
         assertFalse(viewModel.uiState.value.canSave)
@@ -56,10 +56,28 @@ class CreateEntryViewModelTest {
         val repository = RecordingDayEntryRepository()
         val viewModel = createViewModel(repository)
 
-        viewModel.onMetricChanged(CreateEntryMetric.ENERGY, 7)
+        viewModel.onMetricChanged(CreateEntryMetric.ENERGY, 7.0)
         viewModel.save()
 
         assertTrue(repository.savedEntries.isEmpty())
+    }
+
+    @Test
+    fun metricValueIsRoundedToTenths() {
+        val viewModel = createViewModel(RecordingDayEntryRepository())
+
+        viewModel.onMetricChanged(CreateEntryMetric.ENERGY, 7.26)
+
+        assertEquals(7.3, viewModel.uiState.value.energy)
+    }
+
+    @Test
+    fun metricValueCannotBeLowerThanPointOne() {
+        val viewModel = createViewModel(RecordingDayEntryRepository())
+
+        viewModel.onMetricChanged(CreateEntryMetric.ENERGY, 0.0)
+
+        assertEquals(0.1, viewModel.uiState.value.energy)
     }
 
     @Test
@@ -97,7 +115,7 @@ class CreateEntryViewModelTest {
             assertEquals(originalEntry.tags.toSet(), viewModel.uiState.value.selectedTags)
             assertEquals(originalEntry.note, viewModel.uiState.value.note)
 
-            viewModel.onMetricChanged(CreateEntryMetric.ENERGY, 9)
+            viewModel.onMetricChanged(CreateEntryMetric.ENERGY, 9.4)
             viewModel.onTitleChanged("Новый ритм")
             viewModel.onNoteChanged("Обновленный комментарий")
             viewModel.save()
@@ -107,7 +125,7 @@ class CreateEntryViewModelTest {
             assertEquals(originalEntry.id, updatedEntry.id)
             assertEquals(originalEntry.date, updatedEntry.date)
             assertEquals("Новый ритм", updatedEntry.title)
-            assertEquals(9, updatedEntry.metrics.energy)
+            assertEquals(9.4, updatedEntry.metrics.energy)
             assertEquals("Обновленный комментарий", updatedEntry.note)
         } finally {
             Dispatchers.resetMain()

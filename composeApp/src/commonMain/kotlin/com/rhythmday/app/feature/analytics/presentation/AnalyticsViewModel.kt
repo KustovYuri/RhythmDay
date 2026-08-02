@@ -41,13 +41,13 @@ enum class AnalyticsMetric {
 
     fun value(entry: DayEntry): Double = when (this) {
         SCORE -> entry.overallScore
-        SLEEP -> entry.metrics.sleepQuality.toDouble()
-        MENTAL_CLARITY -> entry.metrics.mentalClarity.toDouble()
-        ENERGY -> entry.metrics.energy.toDouble()
-        MOOD -> entry.metrics.mood.toDouble()
-        WELLBEING -> entry.metrics.wellbeing.toDouble()
-        SOCIALITY -> entry.metrics.sociality.toDouble()
-        STRESS -> entry.metrics.stress.toDouble()
+        SLEEP -> entry.metrics.sleepQuality
+        MENTAL_CLARITY -> entry.metrics.mentalClarity
+        ENERGY -> entry.metrics.energy
+        MOOD -> entry.metrics.mood
+        WELLBEING -> entry.metrics.wellbeing
+        SOCIALITY -> entry.metrics.sociality
+        STRESS -> entry.metrics.stress
     }
 }
 

@@ -295,7 +295,7 @@ private fun MetricTile(
         verticalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            text = item.value.toString(),
+            text = item.value.asDisplayScore(),
             fontSize = 19.sp,
             lineHeight = 20.sp,
             fontWeight = FontWeight.Bold,
@@ -365,7 +365,7 @@ private fun DetailCard(content: @Composable ColumnScope.() -> Unit) {
 
 private data class MetricItem(
     val label: String,
-    val value: Int
+    val value: Double
 )
 
 private data class ScoreStyle(

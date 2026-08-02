@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rhythmday.app.core.domain.model.DayEntry
 import com.rhythmday.app.core.domain.model.DayMetrics
+import com.rhythmday.app.core.domain.model.DAY_METRIC_MAX_VALUE
+import com.rhythmday.app.core.domain.model.DAY_METRIC_MIN_VALUE
 import com.rhythmday.app.core.domain.model.DAY_TITLE_MAX_LENGTH
 import com.rhythmday.app.core.domain.usecase.ObserveDayEntryUseCase
 import com.rhythmday.app.core.domain.usecase.SaveDayEntryUseCase
@@ -16,17 +18,18 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
+import kotlin.math.round
 
 data class CreateEntryUiState(
     val isLoading: Boolean = false,
     val entryDate: LocalDate? = null,
-    val energy: Int? = null,
-    val mood: Int? = null,
-    val wellbeing: Int? = null,
-    val sleepQuality: Int? = null,
-    val mentalClarity: Int? = null,
-    val sociality: Int? = null,
-    val stress: Int? = null,
+    val energy: Double? = null,
+    val mood: Double? = null,
+    val wellbeing: Double? = null,
+    val sleepQuality: Double? = null,
+    val mentalClarity: Double? = null,
+    val sociality: Double? = null,
+    val stress: Double? = null,
     val selectedTags: Set<String> = emptySet(),
     val customTags: List<String> = emptyList(),
     val tagsExpanded: Boolean = false,
@@ -93,8 +96,10 @@ class CreateEntryViewModel(
         }
     }
 
-    fun onMetricChanged(metric: CreateEntryMetric, value: Int) {
-        val cleanValue = value.coerceIn(1, 10)
+    fun onMetricChanged(metric: CreateEntryMetric, value: Double) {
+        val cleanValue = round(
+            value.coerceIn(DAY_METRIC_MIN_VALUE, DAY_METRIC_MAX_VALUE) * 10.0
+        ) / 10.0
         _uiState.update { state ->
             when (metric) {
                 CreateEntryMetric.ENERGY -> state.copy(energy = cleanValue)

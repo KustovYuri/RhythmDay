@@ -10,8 +10,8 @@ class DayScoreCalculatorUseCaseTest {
 
     @Test
     fun scoreUsesFullZeroToTenRange() {
-        val worstDay = DayMetrics(1, 1, 1, 1, 1, 1, 10)
-        val bestDay = DayMetrics(10, 10, 10, 10, 10, 10, 1)
+        val worstDay = DayMetrics(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 10.0)
+        val bestDay = DayMetrics(10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 0.1)
 
         assertEquals(0.0, calculator.invoke(worstDay))
         assertEquals(10.0, calculator.invoke(bestDay))
@@ -20,8 +20,15 @@ class DayScoreCalculatorUseCaseTest {
     @Test
     fun higherStressLowersScore() {
         val calmDay = DayMetrics(7, 7, 7, 7, 7, 7, 2)
-        val stressfulDay = calmDay.copy(stress = 9)
+        val stressfulDay = calmDay.copy(stress = 9.0)
 
         assertTrue(calculator.invoke(calmDay) > calculator.invoke(stressfulDay))
+    }
+
+    @Test
+    fun scoreUsesFractionalMetrics() {
+        val metrics = DayMetrics(7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 2.6)
+
+        assertEquals(7.5, calculator.invoke(metrics))
     }
 }

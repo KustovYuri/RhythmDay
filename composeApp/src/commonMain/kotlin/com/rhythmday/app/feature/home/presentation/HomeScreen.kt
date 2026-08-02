@@ -348,7 +348,7 @@ private fun FilledTodayContent(
 }
 
 @Composable
-private fun FilledMetric(label: String, value: Int, modifier: Modifier = Modifier) {
+private fun FilledMetric(label: String, value: Double, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .defaultMinSize(minHeight = 48.dp)
@@ -358,7 +358,7 @@ private fun FilledMetric(label: String, value: Int, modifier: Modifier = Modifie
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = value.toString(),
+            text = value.asMetricValue(),
             fontSize = 16.sp,
             lineHeight = 16.sp,
             fontWeight = FontWeight.Bold,
@@ -568,7 +568,9 @@ private fun PreviousEntryCard(
                         modifier = Modifier.padding(top = if (entry.title == null) 0.dp else 2.dp)
                     )
                     Text(
-                        text = "Энергия ${entry.metrics.energy}, настроение ${entry.metrics.mood}, стресс ${entry.metrics.stress}.",
+                        text = "Энергия ${entry.metrics.energy.asMetricValue()}, " +
+                            "настроение ${entry.metrics.mood.asMetricValue()}, " +
+                            "стресс ${entry.metrics.stress.asMetricValue()}.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = RhythmDayPalette.Muted,
                         modifier = Modifier.padding(top = if (entry.title == null) 2.dp else 4.dp)
@@ -681,6 +683,15 @@ private fun scoreColor(score: Double): Color = when {
 private fun Double.asScore(): String {
     val tenths = (this * 10).roundToInt()
     return "${tenths / 10}.${tenths % 10}"
+}
+
+private fun Double.asMetricValue(): String {
+    val tenths = (this * 10).roundToInt()
+    return if (tenths % 10 == 0) {
+        (tenths / 10).toString()
+    } else {
+        "${tenths / 10}.${tenths % 10}"
+    }
 }
 
 private fun LocalDate.asFullDate(): String =
