@@ -24,17 +24,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,14 +65,13 @@ fun HomeRoute(
     contentPadding: PaddingValues,
     onCreateEntry: () -> Unit,
     onEditEntry: (Long) -> Unit,
-    onStartBlitz: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenAnalytics: () -> Unit,
-    onOpenEntry: (Long) -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenEntry: (Long) -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val dashboard = state.dashboard
+    val showToast = rememberToastPresenter()
 
     when {
         state.isLoading -> Box(
@@ -92,11 +86,10 @@ fun HomeRoute(
             contentPadding = contentPadding,
             onCreateEntry = onCreateEntry,
             onEditEntry = onEditEntry,
-            onStartBlitz = onStartBlitz,
+            onStartBlitz = { showToast("Функционал в разработке") },
             onOpenHistory = onOpenHistory,
             onOpenAnalytics = onOpenAnalytics,
-            onOpenEntry = onOpenEntry,
-            onOpenSettings = onOpenSettings
+            onOpenEntry = onOpenEntry
         )
 
         else -> Box(
@@ -121,8 +114,7 @@ private fun HomeScreen(
     onStartBlitz: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenAnalytics: () -> Unit,
-    onOpenEntry: (Long) -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenEntry: (Long) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -135,7 +127,7 @@ private fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            HomeHeader(dashboard.currentDate, onOpenSettings)
+            HomeHeader(dashboard.currentDate)
         }
         item {
             TodayCard(
@@ -164,11 +156,8 @@ private fun HomeScreen(
 
 @Composable
 private fun HomeHeader(
-    date: LocalDate,
-    onOpenSettings: () -> Unit
+    date: LocalDate
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
-
     Row(
         modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -180,36 +169,14 @@ private fun HomeHeader(
             color = RhythmDayPalette.Ink,
             modifier = Modifier.weight(1f)
         )
-        Box {
-            PrototypeIconButton(
-                icon = RhythmDayIcons.Profile,
-                contentDescription = "Открыть меню профиля",
-                onClick = { menuExpanded = true },
-                size = 42.dp,
-                iconSize = 21.dp
-            )
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false },
-                containerColor = RhythmDayPalette.Panel,
-                shape = CardShape,
-                tonalElevation = 0.dp,
-                shadowElevation = 0.dp
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Профиль") },
-                    onClick = {},
-                    enabled = false
-                )
-                DropdownMenuItem(
-                    text = { Text("Настройки") },
-                    onClick = {
-                        menuExpanded = false
-                        onOpenSettings()
-                    }
-                )
-            }
-        }
+        PrototypeIconButton(
+            icon = RhythmDayIcons.Profile,
+            contentDescription = "Профиль",
+            onClick = {},
+            enabled = false,
+            size = 42.dp,
+            iconSize = 21.dp
+        )
     }
 }
 
@@ -680,14 +647,20 @@ private fun PrototypeIconButton(
     iconSize: androidx.compose.ui.unit.Dp = 20.dp,
     tint: Color = RhythmDayPalette.Ink,
     background: Color = ControlBackground,
-    filled: Boolean = false
+    filled: Boolean = false,
+    enabled: Boolean = true
 ) {
+    val clickModifier = if (enabled) {
+        Modifier.clickable(role = Role.Button, onClick = onClick)
+    } else {
+        Modifier
+    }
     Box(
         modifier = Modifier
             .size(size)
             .clip(CardShape)
             .background(if (filled) Color.White.copy(alpha = 0.94f) else background)
-            .clickable(role = Role.Button, onClick = onClick),
+            .then(clickModifier),
         contentAlignment = Alignment.Center
     ) {
         Icon(

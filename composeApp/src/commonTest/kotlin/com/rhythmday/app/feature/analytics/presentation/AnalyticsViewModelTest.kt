@@ -31,6 +31,8 @@ class AnalyticsViewModelTest {
             val analyticsViewModel = AnalyticsViewModel(
                 repository = AnalyticsRepository(
                     listOf(
+                        entry(id = 6, date = LocalDate(2026, 6, 29)),
+                        entry(id = 7, date = LocalDate(2026, 6, 30)),
                         entry(id = 1, date = LocalDate(2026, 7, 1)),
                         entry(id = 2, date = LocalDate(2026, 7, 26)),
                         entry(id = 3, date = LocalDate(2026, 7, 27)),
@@ -46,12 +48,16 @@ class AnalyticsViewModelTest {
             }
 
             advanceUntilIdle()
-            assertEquals(LocalDate(2026, 7, 27), analyticsViewModel.uiState.value.rangeStart)
-            assertEquals(listOf(3L, 4L), analyticsViewModel.uiState.value.entries.map(DayEntry::id))
+            assertEquals(LocalDate(2026, 7, 23), analyticsViewModel.uiState.value.rangeStart)
+            assertEquals(listOf(2L, 3L, 4L), analyticsViewModel.uiState.value.entries.map(DayEntry::id))
 
             analyticsViewModel.selectRange(AnalyticsRange.MONTH)
             advanceUntilIdle()
-            assertEquals(listOf(1L, 2L, 3L, 4L), analyticsViewModel.uiState.value.entries.map(DayEntry::id))
+            assertEquals(LocalDate(2026, 6, 30), analyticsViewModel.uiState.value.rangeStart)
+            assertEquals(
+                listOf(7L, 1L, 2L, 3L, 4L),
+                analyticsViewModel.uiState.value.entries.map(DayEntry::id)
+            )
 
             analyticsViewModel.selectRange(AnalyticsRange.PERIOD)
             analyticsViewModel.setPeriodStart(LocalDate(2026, 7, 26))

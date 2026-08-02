@@ -1,12 +1,14 @@
 package com.rhythmday.app.feature.analytics.presentation
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -25,7 +27,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -39,18 +40,26 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
@@ -58,6 +67,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -67,7 +77,12 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.coroutines.flow.first
+import kotlin.math.abs
+import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.max
+import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.time.Instant
 
@@ -82,12 +97,18 @@ private val WellbeingColor = Color(0xFF7D6AC9)
 private val SocialityColor = Color(0xFFD1783F)
 private val StressColor = Color(0xFFD96A58)
 private val ChartHeight = 292.dp
-private val ChartAxisWidth = 30.dp
+private val ChartAxisWidth = 28.dp
 private val ChartTopPadding = 16.dp
 private val ChartBottomPadding = 32.dp
+private val ChartHorizontalPadding = 16.dp
+private val MinimumChartTickSpacing = 22.dp
 private const val ChartPointSpacing = 52f
 private const val MinimumChartZoom = 1f
 private const val MaximumChartZoom = 4f
+
+private data class ChartVerticalScale(
+    val visibleRange: Double
+)
 
 @Composable
 fun AnalyticsRoute(
@@ -447,13 +468,16 @@ private fun ChartPanel(
     }
     val primaryMetric = selectedMetrics.first()
 
-    AnalyticsCard {
+    AnalyticsCard(
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 14.dp)
+    ) {
         Text(
             text = if (selectedMetrics.size == 1) primaryMetric.label else "Выбранные показатели",
             fontSize = 18.sp,
             lineHeight = 22.sp,
             fontWeight = FontWeight.Bold,
-            color = RhythmDayPalette.Ink
+            color = RhythmDayPalette.Ink,
+            modifier = Modifier.padding(horizontal = 6.dp)
         )
         Text(
             text = state.rangeSubtitle(),
@@ -461,7 +485,7 @@ private fun ChartPanel(
             lineHeight = 16.sp,
             fontWeight = FontWeight.Bold,
             color = RhythmDayPalette.Muted,
-            modifier = Modifier.padding(top = 3.dp)
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
         )
 
         LineChart(
@@ -472,7 +496,7 @@ private fun ChartPanel(
         )
         MetricLegend(
             metrics = selectedMetrics,
-            modifier = Modifier.padding(top = 8.dp)
+            modifier = Modifier.padding(start = 6.dp, top = 8.dp, end = 6.dp)
         )
     }
 }
@@ -505,40 +529,151 @@ private fun LineChart(
     onOpenEntry: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val density = LocalDensity.current
+    val chartStateKey = buildString {
+        append(entries.firstOrNull()?.id)
+        append(':')
+        append(entries.lastOrNull()?.id)
+        append(':')
+        append(entries.size)
+        append(':')
+        selectedMetrics.forEach { metric -> append(metric.name) }
+    }
+    val initialVerticalCenter = entries
+        .flatMap { entry -> selectedMetrics.map { metric -> metric.value(entry) } }
+        .average()
+        .coerceIn(0.0, 10.0)
+    var zoom by rememberSaveable(chartStateKey) {
+        mutableFloatStateOf(MinimumChartZoom)
+    }
+    var verticalCenter by rememberSaveable(chartStateKey) {
+        mutableDoubleStateOf(initialVerticalCenter)
+    }
+    var latestPositionApplied by rememberSaveable(chartStateKey) {
+        mutableStateOf(false)
+    }
+    val verticalScale = chartVerticalScale(zoom)
+    val displayedCenter = constrainedVerticalCenter(verticalCenter, verticalScale.visibleRange)
+    val minimumVisibleValue = displayedCenter - verticalScale.visibleRange / 2.0
+    val maximumVisibleValue = displayedCenter + verticalScale.visibleRange / 2.0
+
     Row(
         modifier = modifier.fillMaxWidth().height(ChartHeight),
         verticalAlignment = Alignment.Top
     ) {
         ChartYAxis(
+            minimumValue = minimumVisibleValue,
+            maximumValue = maximumVisibleValue,
             modifier = Modifier.width(ChartAxisWidth).height(ChartHeight)
         )
         BoxWithConstraints(
             modifier = Modifier.weight(1f).height(ChartHeight)
         ) {
-            val scrollState = rememberScrollState()
-            var zoom by remember(
-                entries.firstOrNull()?.id,
-                entries.lastOrNull()?.id,
-                entries.size
+            val scrollState = rememberSaveable(chartStateKey, saver = ScrollState.Saver) {
+                ScrollState(initial = 0)
+            }
+            val chartPlotHeightPx = with(density) {
+                (ChartHeight - ChartTopPadding - ChartBottomPadding).toPx()
+            }
+            val chartTopPaddingPx = with(density) { ChartTopPadding.toPx() }
+            val chartHorizontalPaddingPx = with(density) { ChartHorizontalPadding.toPx() }
+            val viewportWidthPx = with(density) { maxWidth.toPx() }
+            val baseChartWidth = max(maxWidth.value, entries.size * ChartPointSpacing)
+            val baseChartWidthPx = with(density) { baseChartWidth.dp.toPx() }
+            val chartWidth = (baseChartWidth * zoom).dp
+            val hasInitialOverflow = baseChartWidth > maxWidth.value
+            var pendingHorizontalOffset by remember(chartStateKey) {
+                mutableFloatStateOf(Float.NaN)
+            }
+            val transformableState = rememberTransformableState { centroid, zoomChange, panChange, _ ->
+                val previousZoom = zoom
+                val previousScale = chartVerticalScale(previousZoom)
+                val nextZoom = (previousZoom * zoomChange)
+                    .coerceIn(MinimumChartZoom, MaximumChartZoom)
+                val nextScale = chartVerticalScale(nextZoom)
+                val previousChartWidthPx = baseChartWidthPx * previousZoom
+                val nextChartWidthPx = baseChartWidthPx * nextZoom
+                val currentHorizontalOffset = pendingHorizontalOffset
+                    .takeUnless(Float::isNaN)
+                    ?: scrollState.value.toFloat()
+                var nextHorizontalOffset = currentHorizontalOffset
+                if (abs(nextZoom - previousZoom) > 0.0001f) {
+                    nextHorizontalOffset = anchoredHorizontalOffset(
+                        currentOffset = currentHorizontalOffset,
+                        centroidX = centroid.x,
+                        previousContentWidth = previousChartWidthPx,
+                        nextContentWidth = nextChartWidthPx,
+                        horizontalPadding = chartHorizontalPaddingPx
+                    )
+                }
+                nextHorizontalOffset = (nextHorizontalOffset - panChange.x).coerceIn(
+                    minimumValue = 0f,
+                    maximumValue = (nextChartWidthPx - viewportWidthPx).coerceAtLeast(0f)
+                )
+                pendingHorizontalOffset = nextHorizontalOffset
+                scrollState.dispatchRawDelta(nextHorizontalOffset - scrollState.value)
+
+                val previousCenter = constrainedVerticalCenter(
+                    center = verticalCenter,
+                    visibleRange = previousScale.visibleRange
+                )
+                val verticalAnchorFraction = (
+                    (centroid.y - chartTopPaddingPx) / chartPlotHeightPx
+                    ).coerceIn(0f, 1f)
+                val anchorValue = previousCenter + previousScale.visibleRange / 2.0 -
+                    verticalAnchorFraction * previousScale.visibleRange
+                val anchoredCenter = anchorValue +
+                    (verticalAnchorFraction - 0.5f) * nextScale.visibleRange
+                verticalCenter = constrainedVerticalCenter(
+                    center = anchoredCenter +
+                        panChange.y / chartPlotHeightPx * nextScale.visibleRange,
+                    visibleRange = nextScale.visibleRange
+                )
+                zoom = nextZoom
+            }
+
+            LaunchedEffect(chartWidth, pendingHorizontalOffset) {
+                val targetOffset = pendingHorizontalOffset
+                if (!targetOffset.isNaN()) {
+                    withFrameNanos { }
+                    scrollState.dispatchRawDelta(
+                        targetOffset.coerceIn(0f, scrollState.maxValue.toFloat()) -
+                            scrollState.value
+                    )
+                    if (pendingHorizontalOffset == targetOffset) {
+                        pendingHorizontalOffset = Float.NaN
+                    }
+                }
+            }
+
+            LaunchedEffect(
+                chartStateKey,
+                hasInitialOverflow,
+                latestPositionApplied
             ) {
-                mutableFloatStateOf(MinimumChartZoom)
+                if (!latestPositionApplied) {
+                    if (hasInitialOverflow) {
+                        snapshotFlow { scrollState.maxValue }.first { maximum -> maximum > 0 }
+                        scrollState.scrollTo(scrollState.maxValue)
+                    }
+                    latestPositionApplied = true
+                }
             }
-            val transformableState = rememberTransformableState { _, zoomChange, _, _ ->
-                zoom = (zoom * zoomChange).coerceIn(MinimumChartZoom, MaximumChartZoom)
-            }
-            val chartWidth = (
-                max(maxWidth.value, entries.size * ChartPointSpacing) * zoom
-                ).dp
 
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .transformable(transformableState)
+                    .transformable(
+                        state = transformableState,
+                        canPan = { zoom > MinimumChartZoom }
+                    )
                     .horizontalScroll(scrollState)
             ) {
                 MetricChartCanvas(
                     entries = entries,
                     selectedMetrics = selectedMetrics,
+                    minimumValue = minimumVisibleValue,
+                    maximumValue = maximumVisibleValue,
                     onOpenEntry = onOpenEntry,
                     modifier = Modifier.width(chartWidth).height(ChartHeight)
                 )
@@ -548,7 +683,11 @@ private fun LineChart(
 }
 
 @Composable
-private fun ChartYAxis(modifier: Modifier = Modifier) {
+private fun ChartYAxis(
+    minimumValue: Double,
+    maximumValue: Double,
+    modifier: Modifier = Modifier
+) {
     val textMeasurer = rememberTextMeasurer()
     val axisStyle = TextStyle(
         fontSize = 10.sp,
@@ -560,10 +699,19 @@ private fun ChartYAxis(modifier: Modifier = Modifier) {
         val top = ChartTopPadding.toPx()
         val bottom = ChartBottomPadding.toPx()
         val plotHeight = size.height - top - bottom
+        val pixelsPerValue = plotHeight / (maximumValue - minimumValue).toFloat()
 
-        (0..10).forEach { value ->
-            val y = top + ((10f - value) / 10f) * plotHeight
-            val label = value.toString()
+        chartTicks(
+            minimumValue = minimumValue,
+            maximumValue = maximumValue,
+            pixelsPerValue = pixelsPerValue,
+            minimumSpacing = MinimumChartTickSpacing.toPx()
+        ).forEach { value ->
+            val fraction = (
+                (maximumValue - value) / (maximumValue - minimumValue)
+                ).toFloat()
+            val y = top + fraction * plotHeight
+            val label = value.asAxisLabel()
             val measured = textMeasurer.measure(label, axisStyle)
             drawText(
                 textMeasurer = textMeasurer,
@@ -583,6 +731,8 @@ private fun ChartYAxis(modifier: Modifier = Modifier) {
 private fun MetricChartCanvas(
     entries: List<DayEntry>,
     selectedMetrics: List<AnalyticsMetric>,
+    minimumValue: Double,
+    maximumValue: Double,
     onOpenEntry: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -592,41 +742,42 @@ private fun MetricChartCanvas(
         fontWeight = FontWeight.Bold,
         color = RhythmDayPalette.Muted
     )
-    val primaryMetric = selectedMetrics.first()
-
     Canvas(
-        modifier = modifier.pointerInput(entries, primaryMetric) {
+        modifier = modifier.pointerInput(
+            entries,
+            selectedMetrics,
+            minimumValue,
+            maximumValue
+        ) {
             detectTapGestures { tap ->
-                val left = 8.dp.toPx()
-                val right = 14.dp.toPx()
+                val left = ChartHorizontalPadding.toPx()
+                val right = ChartHorizontalPadding.toPx()
                 val top = ChartTopPadding.toPx()
                 val bottom = ChartBottomPadding.toPx()
                 val plotWidth = (size.width - left - right).coerceAtLeast(0f)
                 val plotHeight = (size.height - top - bottom).coerceAtLeast(0f)
-                val nearestIndex = entries.indices.minByOrNull { index ->
-                    val point = chartPoint(
-                        index = index,
-                        count = entries.size,
-                        value = primaryMetric.value(entries[index]),
-                        left = left,
-                        top = top,
-                        plotWidth = plotWidth,
-                        plotHeight = plotHeight
-                    )
+                val nearestPoint = entries.indices.flatMap { index ->
+                    selectedMetrics.mapNotNull { metric ->
+                        val point = chartPoint(
+                            index = index,
+                            count = entries.size,
+                            value = metric.value(entries[index]),
+                            left = left,
+                            top = top,
+                            plotWidth = plotWidth,
+                            plotHeight = plotHeight,
+                            minimumValue = minimumValue,
+                            maximumValue = maximumValue
+                        )
+                        if (point.y in top..(top + plotHeight)) index to point else null
+                    }
+                }.minByOrNull { (_, point) ->
                     (point.x - tap.x) * (point.x - tap.x) +
                         (point.y - tap.y) * (point.y - tap.y)
                 }
-                if (nearestIndex != null) {
-                    val point = chartPoint(
-                        index = nearestIndex,
-                        count = entries.size,
-                        value = primaryMetric.value(entries[nearestIndex]),
-                        left = left,
-                        top = top,
-                        plotWidth = plotWidth,
-                        plotHeight = plotHeight
-                    )
-                    val radius = 18.dp.toPx()
+                if (nearestPoint != null) {
+                    val (nearestIndex, point) = nearestPoint
+                    val radius = 20.dp.toPx()
                     val distanceSquared = (point.x - tap.x) * (point.x - tap.x) +
                         (point.y - tap.y) * (point.y - tap.y)
                     if (distanceSquared <= radius * radius) {
@@ -636,15 +787,23 @@ private fun MetricChartCanvas(
             }
         }
     ) {
-        val left = 8.dp.toPx()
-        val right = 14.dp.toPx()
+        val left = ChartHorizontalPadding.toPx()
+        val right = ChartHorizontalPadding.toPx()
         val top = ChartTopPadding.toPx()
         val bottom = ChartBottomPadding.toPx()
         val plotWidth = size.width - left - right
         val plotHeight = size.height - top - bottom
+        val pixelsPerValue = plotHeight / (maximumValue - minimumValue).toFloat()
 
-        (0..10).forEach { value ->
-            val y = top + ((10f - value) / 10f) * plotHeight
+        chartTicks(
+            minimumValue = minimumValue,
+            maximumValue = maximumValue,
+            pixelsPerValue = pixelsPerValue,
+            minimumSpacing = MinimumChartTickSpacing.toPx()
+        ).forEach { value ->
+            val y = top + (
+                (maximumValue - value) / (maximumValue - minimumValue)
+                ).toFloat() * plotHeight
             drawLine(
                 color = GridLine,
                 start = Offset(left, y),
@@ -653,37 +812,44 @@ private fun MetricChartCanvas(
             )
         }
 
-        selectedMetrics.forEach { metric ->
-            val path = Path()
-            entries.forEachIndexed { index, entry ->
-                val point = chartPoint(
-                    index = index,
-                    count = entries.size,
-                    value = metric.value(entry),
-                    left = left,
-                    top = top,
-                    plotWidth = plotWidth,
-                    plotHeight = plotHeight
+        clipRect(
+            left = 0f,
+            top = top,
+            right = size.width,
+            bottom = top + plotHeight
+        ) {
+            selectedMetrics.forEach { metric ->
+                val points = entries.mapIndexed { index, entry ->
+                    chartPoint(
+                        index = index,
+                        count = entries.size,
+                        value = metric.value(entry),
+                        left = left,
+                        top = top,
+                        plotWidth = plotWidth,
+                        plotHeight = plotHeight,
+                        minimumValue = minimumValue,
+                        maximumValue = maximumValue
+                    )
+                }
+                drawPath(
+                    path = smoothPath(points),
+                    color = metric.color,
+                    style = Stroke(
+                        width = 3.dp.toPx(),
+                        cap = StrokeCap.Round,
+                        join = StrokeJoin.Round
+                    )
                 )
-                if (index == 0) path.moveTo(point.x, point.y) else path.lineTo(point.x, point.y)
-            }
-            drawPath(
-                path = path,
-                color = metric.color,
-                style = Stroke(width = 3.dp.toPx())
-            )
-            entries.forEachIndexed { index, entry ->
-                val point = chartPoint(
-                    index = index,
-                    count = entries.size,
-                    value = metric.value(entry),
-                    left = left,
-                    top = top,
-                    plotWidth = plotWidth,
-                    plotHeight = plotHeight
-                )
-                drawCircle(Color.White, radius = 5.dp.toPx(), center = point)
-                drawCircle(metric.color, radius = 3.5.dp.toPx(), center = point)
+                entries.forEachIndexed { index, entry ->
+                    val point = points[index]
+                    drawCircle(Color.White, radius = 5.dp.toPx(), center = point)
+                    drawCircle(
+                        color = metric.pointColor(metric.value(entry)),
+                        radius = 3.5.dp.toPx(),
+                        center = point
+                    )
+                }
             }
         }
 
@@ -691,11 +857,13 @@ private fun MetricChartCanvas(
             val point = chartPoint(
                 index = index,
                 count = entries.size,
-                value = 0.0,
+                value = minimumValue,
                 left = left,
                 top = top,
                 plotWidth = plotWidth,
-                plotHeight = plotHeight
+                plotHeight = plotHeight,
+                minimumValue = minimumValue,
+                maximumValue = maximumValue
             )
             val label = entry.date.asChartDate()
             val measured = textMeasurer.measure(label, axisStyle)
@@ -713,6 +881,69 @@ private fun MetricChartCanvas(
     }
 }
 
+private fun chartVerticalScale(zoom: Float): ChartVerticalScale {
+    val progress = (
+        (zoom - MinimumChartZoom) / (MaximumChartZoom - MinimumChartZoom)
+        ).coerceIn(0f, 1f)
+    return ChartVerticalScale(
+        visibleRange = 10.0.pow(1.0 - progress)
+    )
+}
+
+private fun constrainedVerticalCenter(center: Double, visibleRange: Double): Double =
+    center.coerceIn(visibleRange / 2.0, 10.0 - visibleRange / 2.0)
+
+private fun anchoredHorizontalOffset(
+    currentOffset: Float,
+    centroidX: Float,
+    previousContentWidth: Float,
+    nextContentWidth: Float,
+    horizontalPadding: Float
+): Float {
+    val previousPlotWidth = (previousContentWidth - 2f * horizontalPadding).coerceAtLeast(1f)
+    val nextPlotWidth = (nextContentWidth - 2f * horizontalPadding).coerceAtLeast(1f)
+    val positionInPlot = (
+        currentOffset + centroidX - horizontalPadding
+        ) / previousPlotWidth
+    val nextContentX = horizontalPadding + positionInPlot * nextPlotWidth
+    return nextContentX - centroidX
+}
+
+private fun chartTicks(
+    minimumValue: Double,
+    maximumValue: Double,
+    pixelsPerValue: Float,
+    minimumSpacing: Float
+): List<Double> {
+    val step = listOf(0.1, 0.2, 0.5, 1.0).firstOrNull { candidate ->
+        pixelsPerValue * candidate >= minimumSpacing
+    } ?: 1.0
+    val firstIndex = ceil((minimumValue - 0.0001) / step).toInt()
+    val lastIndex = floor((maximumValue + 0.0001) / step).toInt()
+    return (firstIndex..lastIndex).map { index -> index * step }
+}
+
+private fun smoothPath(points: List<Offset>): Path = Path().apply {
+    if (points.isEmpty()) return@apply
+    moveTo(points.first().x, points.first().y)
+    if (points.size == 1) return@apply
+
+    for (index in 0 until points.lastIndex) {
+        val previous = points.getOrElse(index - 1) { points[index] }
+        val current = points[index]
+        val next = points[index + 1]
+        val following = points.getOrElse(index + 2) { next }
+        cubicTo(
+            x1 = current.x + (next.x - previous.x) / 6f,
+            y1 = current.y + (next.y - previous.y) / 6f,
+            x2 = next.x - (following.x - current.x) / 6f,
+            y2 = next.y - (following.y - current.y) / 6f,
+            x3 = next.x,
+            y3 = next.y
+        )
+    }
+}
+
 private fun chartPoint(
     index: Int,
     count: Int,
@@ -720,7 +951,9 @@ private fun chartPoint(
     left: Float,
     top: Float,
     plotWidth: Float,
-    plotHeight: Float
+    plotHeight: Float,
+    minimumValue: Double,
+    maximumValue: Double
 ): Offset {
     val x = if (count <= 1) {
         left + plotWidth / 2f
@@ -728,7 +961,8 @@ private fun chartPoint(
         left + plotWidth * index / (count - 1)
     }
     val cleanValue = value.coerceIn(0.0, 10.0)
-    val y = top + ((10.0 - cleanValue) / 10.0).toFloat() * plotHeight
+    val valueRange = (maximumValue - minimumValue).coerceAtLeast(0.01)
+    val y = top + ((maximumValue - cleanValue) / valueRange).toFloat() * plotHeight
     return Offset(x, y)
 }
 
@@ -868,24 +1102,34 @@ private fun MiniLineChart(
 ) {
     Canvas(modifier = modifier) {
         if (values.isEmpty()) return@Canvas
-        val path = Path()
-        values.forEachIndexed { index, value ->
+        val points = values.mapIndexed { index, value ->
             val x = if (values.size <= 1) size.width / 2f else size.width * index / (values.size - 1)
-            val y = ((10.0 - value.coerceIn(1.0, 10.0)) / 9.0).toFloat() * size.height
-            if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            val y = ((10.0 - value.coerceIn(0.0, 10.0)) / 10.0).toFloat() * size.height
+            Offset(x, y)
         }
-        drawPath(path = path, color = color, style = Stroke(width = 2.5.dp.toPx()))
+        drawPath(
+            path = smoothPath(points),
+            color = color,
+            style = Stroke(
+                width = 2.5.dp.toPx(),
+                cap = StrokeCap.Round,
+                join = StrokeJoin.Round
+            )
+        )
     }
 }
 
 @Composable
-private fun AnalyticsCard(content: @Composable ColumnScope.() -> Unit) {
+private fun AnalyticsCard(
+    contentPadding: PaddingValues = PaddingValues(14.dp),
+    content: @Composable ColumnScope.() -> Unit
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = CardShape,
         color = RhythmDayPalette.Panel
     ) {
-        Column(modifier = Modifier.padding(14.dp), content = content)
+        Column(modifier = Modifier.padding(contentPadding), content = content)
     }
 }
 
@@ -915,8 +1159,8 @@ private fun EmptyAnalyticsMessage(
 
 private val AnalyticsRange.label: String
     get() = when (this) {
-        AnalyticsRange.WEEK -> "Неделя"
-        AnalyticsRange.MONTH -> "Месяц"
+        AnalyticsRange.WEEK -> "7 дней"
+        AnalyticsRange.MONTH -> "30 дней"
         AnalyticsRange.PERIOD -> "Период"
     }
 
@@ -950,11 +1194,16 @@ private val AnalyticsMetric.color: Color
         AnalyticsMetric.STRESS -> StressColor
     }
 
-private fun AnalyticsUiState.rangeSubtitle(): String = when (range) {
-    AnalyticsRange.MONTH -> "${monthNamesNominative[rangeStart.month.ordinal]} ${rangeStart.year}"
-    AnalyticsRange.WEEK,
-    AnalyticsRange.PERIOD -> formatDateRange(rangeStart, rangeEnd)
+private fun AnalyticsMetric.pointColor(value: Double): Color {
+    val levelValue = if (this == AnalyticsMetric.STRESS) 11.0 - value else value
+    return when {
+        levelValue >= 8.0 -> RhythmDayPalette.GoodDay
+        levelValue >= 5.0 -> RhythmDayPalette.MediumDay
+        else -> RhythmDayPalette.HardDay
+    }
 }
+
+private fun AnalyticsUiState.rangeSubtitle(): String = formatDateRange(rangeStart, rangeEnd)
 
 private fun formatDateRange(start: LocalDate, end: LocalDate): String = when {
     start == end -> "${start.day} ${monthNamesGenitive[start.month.ordinal]}"
@@ -982,25 +1231,19 @@ private fun Double.asDisplayValue(): String {
     }
 }
 
+private fun Double.asAxisLabel(): String {
+    val tenths = (this * 10).roundToInt()
+    return if (tenths % 10 == 0) {
+        (tenths / 10).toString()
+    } else {
+        "${tenths / 10}.${tenths % 10}"
+    }
+}
+
 private enum class DateTarget {
     START,
     END
 }
-
-private val monthNamesNominative = listOf(
-    "Январь",
-    "Февраль",
-    "Март",
-    "Апрель",
-    "Май",
-    "Июнь",
-    "Июль",
-    "Август",
-    "Сентябрь",
-    "Октябрь",
-    "Ноябрь",
-    "Декабрь"
-)
 
 private val monthNamesGenitive = listOf(
     "января",

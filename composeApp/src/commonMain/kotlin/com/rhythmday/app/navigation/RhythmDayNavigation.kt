@@ -88,10 +88,9 @@ private val navigationStateConfiguration = SavedStateConfiguration {
 
 private val topLevelRoutes = listOf(
     TopLevelDestination(HomeRouteKey, "Главная", RhythmDayIcons.Home),
-    TopLevelDestination(HistoryRoute, "История", RhythmDayIcons.Calendar),
     TopLevelDestination(CreateEntryRoute, "Запись дня", Icons.Filled.Add),
-    TopLevelDestination(AnalyticsRoute, "Аналитика", RhythmDayIcons.Analytics),
-    TopLevelDestination(AiRoute, "ИИ", RhythmDayIcons.Ai)
+    TopLevelDestination(HistoryRoute, "История", RhythmDayIcons.Calendar),
+    TopLevelDestination(AnalyticsRoute, "Аналитика", RhythmDayIcons.Analytics)
 )
 
 private data class TopLevelDestination(
@@ -249,11 +248,9 @@ fun RhythmDayNavigation() {
                         contentPadding = contentPadding,
                         onCreateEntry = ::openCreateEntry,
                         onEditEntry = { entryId -> open(EditEntryRoute(entryId)) },
-                        onStartBlitz = { open(BlitzRoute) },
                         onOpenHistory = { openTopLevel(HistoryRoute) },
                         onOpenAnalytics = { openTopLevel(AnalyticsRoute) },
-                        onOpenEntry = { entryId -> open(EntryDetailsRoute(entryId)) },
-                        onOpenSettings = { open(SettingsRoute) }
+                        onOpenEntry = { entryId -> open(EntryDetailsRoute(entryId)) }
                     )
                 }
                 entry<HistoryRoute> {

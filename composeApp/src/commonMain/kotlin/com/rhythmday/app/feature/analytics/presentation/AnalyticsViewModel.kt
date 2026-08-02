@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.isoDayNumber
 import kotlinx.datetime.minus
 import kotlinx.datetime.todayIn
 import kotlin.time.Clock
@@ -180,8 +179,8 @@ private fun AnalyticsRange.dateRange(
     periodEnd: LocalDate
 ): Pair<LocalDate, LocalDate> {
     val start = when (this) {
-        AnalyticsRange.WEEK -> today.minus(today.dayOfWeek.isoDayNumber - 1, DateTimeUnit.DAY)
-        AnalyticsRange.MONTH -> LocalDate(today.year, today.month, 1)
+        AnalyticsRange.WEEK -> today.minus(6, DateTimeUnit.DAY)
+        AnalyticsRange.MONTH -> today.minus(29, DateTimeUnit.DAY)
         AnalyticsRange.PERIOD -> periodStart
     }
     val end = if (this == AnalyticsRange.PERIOD) periodEnd else today
