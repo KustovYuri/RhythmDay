@@ -60,6 +60,12 @@ class AnalyticsViewModelTest {
             )
 
             analyticsViewModel.selectRange(AnalyticsRange.PERIOD)
+            advanceUntilIdle()
+            assertEquals(LocalDate(2026, 5, 29), analyticsViewModel.uiState.value.periodStart)
+            assertEquals(LocalDate(2026, 7, 29), analyticsViewModel.uiState.value.periodEnd)
+            assertEquals(LocalDate(2026, 5, 29), analyticsViewModel.uiState.value.rangeStart)
+            assertEquals(LocalDate(2026, 7, 29), analyticsViewModel.uiState.value.rangeEnd)
+
             analyticsViewModel.setPeriodStart(LocalDate(2026, 7, 26))
             analyticsViewModel.setPeriodEnd(LocalDate(2026, 7, 28))
             advanceUntilIdle()

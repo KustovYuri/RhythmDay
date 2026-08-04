@@ -79,6 +79,7 @@ class AnalyticsViewModel(
     }
 ) : ViewModel() {
     private val today = currentDate()
+    private val defaultPeriodStart = today.minus(2, DateTimeUnit.MONTH)
     private val controls = MutableStateFlow(AnalyticsControls())
 
     val uiState: StateFlow<AnalyticsUiState> = repository.observeEntries()
@@ -86,7 +87,7 @@ class AnalyticsViewModel(
             val allEntries = repositoryEntries
                 .filter { entry -> entry.date <= today }
                 .sortedBy(DayEntry::date)
-            val periodStart = controls.periodStart ?: allEntries.firstOrNull()?.date ?: today
+            val periodStart = controls.periodStart ?: defaultPeriodStart
             val periodEnd = controls.periodEnd ?: today
             val (rangeStart, rangeEnd) = controls.range.dateRange(
                 today = today,
@@ -114,7 +115,7 @@ class AnalyticsViewModel(
                     range = controls.range,
                     mode = controls.mode,
                     selectedMetrics = controls.selectedMetrics,
-                    periodStart = controls.periodStart ?: today,
+                    periodStart = controls.periodStart ?: defaultPeriodStart,
                     periodEnd = controls.periodEnd ?: today,
                     errorMessage = "Не удалось загрузить аналитику"
                 )
@@ -123,7 +124,10 @@ class AnalyticsViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = AnalyticsUiState(periodStart = today, periodEnd = today)
+            initialValue = AnalyticsUiState(
+                periodStart = defaultPeriodStart,
+                periodEnd = today
+            )
         )
 
     fun selectRange(range: AnalyticsRange) {

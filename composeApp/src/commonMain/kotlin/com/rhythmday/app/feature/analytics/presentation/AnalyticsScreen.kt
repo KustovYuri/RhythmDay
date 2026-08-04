@@ -4,7 +4,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.horizontalScroll
@@ -60,6 +61,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
@@ -103,6 +106,9 @@ private val ChartAxisWidth = 28.dp
 private val ChartTopPadding = 16.dp
 private val ChartBottomPadding = 32.dp
 private val ChartHorizontalPadding = 16.dp
+private val ChartLineWidth = 3.dp
+private val ChartPointOuterRadius = 5.dp
+private val ChartPointInnerRadius = 3.5.dp
 private val MinimumChartTickSpacing = 22.dp
 private const val ChartPointSpacing = 52f
 private const val MinimumChartZoom = 1f
@@ -667,9 +673,12 @@ private fun LineChart(
                     .fillMaxSize()
                     .transformable(
                         state = transformableState,
-                        canPan = { zoom > MinimumChartZoom }
+                        canPan = { pan ->
+                            zoom > MinimumChartZoom ||
+                                scrollState.maxValue > 0 && abs(pan.x) > abs(pan.y)
+                        }
                     )
-                    .horizontalScroll(scrollState)
+                    .horizontalScroll(scrollState, enabled = false)
             ) {
                 MetricChartCanvas(
                     entries = entries,
@@ -751,7 +760,7 @@ private fun MetricChartCanvas(
             minimumValue,
             maximumValue
         ) {
-            detectTapGestures { tap ->
+            detectChartTaps { tap ->
                 val left = ChartHorizontalPadding.toPx()
                 val right = ChartHorizontalPadding.toPx()
                 val top = ChartTopPadding.toPx()
@@ -814,41 +823,55 @@ private fun MetricChartCanvas(
             )
         }
 
+        val metricPoints = selectedMetrics.associateWith { metric ->
+            entries.mapIndexed { index, entry ->
+                chartPoint(
+                    index = index,
+                    count = entries.size,
+                    value = metric.value(entry),
+                    left = left,
+                    top = top,
+                    plotWidth = plotWidth,
+                    plotHeight = plotHeight,
+                    minimumValue = minimumValue,
+                    maximumValue = maximumValue
+                )
+            }
+        }
+        val halfLineWidth = ChartLineWidth.toPx() / 2f
         clipRect(
             left = 0f,
-            top = top,
+            top = top - halfLineWidth,
             right = size.width,
-            bottom = top + plotHeight
+            bottom = top + plotHeight + halfLineWidth
         ) {
             selectedMetrics.forEach { metric ->
-                val points = entries.mapIndexed { index, entry ->
-                    chartPoint(
-                        index = index,
-                        count = entries.size,
-                        value = metric.value(entry),
-                        left = left,
-                        top = top,
-                        plotWidth = plotWidth,
-                        plotHeight = plotHeight,
-                        minimumValue = minimumValue,
-                        maximumValue = maximumValue
-                    )
-                }
+                val points = metricPoints.getValue(metric)
                 drawPath(
                     path = smoothPath(points),
                     color = metric.color,
                     style = Stroke(
-                        width = 3.dp.toPx(),
+                        width = ChartLineWidth.toPx(),
                         cap = StrokeCap.Round,
                         join = StrokeJoin.Round
                     )
                 )
-                entries.forEachIndexed { index, entry ->
-                    val point = points[index]
-                    drawCircle(Color.White, radius = 5.dp.toPx(), center = point)
+            }
+        }
+
+        selectedMetrics.forEach { metric ->
+            val points = metricPoints.getValue(metric)
+            entries.forEachIndexed { index, entry ->
+                val point = points[index]
+                if (point.y in top..(top + plotHeight)) {
+                    drawCircle(
+                        color = Color.White,
+                        radius = ChartPointOuterRadius.toPx(),
+                        center = point
+                    )
                     drawCircle(
                         color = metric.pointColor(metric.value(entry)),
-                        radius = 3.5.dp.toPx(),
+                        radius = ChartPointInnerRadius.toPx(),
                         center = point
                     )
                 }
@@ -879,6 +902,36 @@ private fun MetricChartCanvas(
                 ),
                 style = axisStyle
             )
+        }
+    }
+}
+
+private suspend fun PointerInputScope.detectChartTaps(onTap: (Offset) -> Unit) {
+    awaitEachGesture {
+        val down = awaitFirstDown(
+            requireUnconsumed = false,
+            pass = PointerEventPass.Final
+        )
+        val pointerId = down.id
+        val startPosition = down.position
+        var isTap = true
+
+        while (true) {
+            val event = awaitPointerEvent(PointerEventPass.Final)
+            if (event.changes.count { change -> change.pressed } > 1) {
+                isTap = false
+            }
+            val change = event.changes.firstOrNull { candidate -> candidate.id == pointerId }
+                ?: break
+            if (change.isConsumed ||
+                (change.position - startPosition).getDistance() > viewConfiguration.touchSlop
+            ) {
+                isTap = false
+            }
+            if (!change.pressed) {
+                if (isTap) onTap(change.position)
+                break
+            }
         }
     }
 }
