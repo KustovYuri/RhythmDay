@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
+import com.rhythmday.app.core.designsystem.scoreColors
 import com.rhythmday.app.core.domain.model.DAY_METRIC_MAX_VALUE
 import com.rhythmday.app.core.domain.model.DAY_METRIC_MIN_VALUE
 import com.rhythmday.app.core.domain.model.DAY_TITLE_MAX_LENGTH
@@ -88,12 +89,8 @@ private val ControlBackground = Color(0xFFEDF3F5)
 private val FieldBackground = Color(0xFFF0F4F7)
 private val SelectedTagBackground = Color(0xFFCBE8E3)
 private val InactiveSliderThumb = Color(0xFF5FAFA6)
-private val LowPillBackground = Color(0xFFF7EBE8)
-private val LowPillText = Color(0xFF8C4D45)
-private val MediumPillBackground = Color(0xFFFFF4D8)
-private val MediumPillText = Color(0xFF896617)
-private val HighPillBackground = Color(0xFFE4F3EA)
-private val HighPillText = Color(0xFF2D7841)
+private val DestructiveButtonBackground = Color(0xFFF7EBE8)
+private val DestructiveButtonText = Color(0xFF8C4D45)
 private const val VoiceWaveformBarCount = 28
 private const val VoiceWaveformSampleIntervalMillis = 160L
 
@@ -871,8 +868,8 @@ private fun DeleteTagDialog(
                     )
                     DialogActionButton(
                         text = "Удалить",
-                        background = LowPillBackground,
-                        contentColor = LowPillText,
+                        background = DestructiveButtonBackground,
+                        contentColor = DestructiveButtonText,
                         onClick = onConfirm,
                         modifier = Modifier.weight(1f)
                     )
@@ -1119,16 +1116,8 @@ private fun pillColors(
     value: Double,
     inverted: Boolean
 ): PillColors {
-    val levelValue = if (inverted) {
-        DAY_METRIC_MIN_VALUE + DAY_METRIC_MAX_VALUE - value
-    } else {
-        value
-    }
-    return when {
-        levelValue >= 8.0 -> PillColors(HighPillBackground, HighPillText)
-        levelValue >= 5.0 -> PillColors(MediumPillBackground, MediumPillText)
-        else -> PillColors(LowPillBackground, LowPillText)
-    }
+    val colors = scoreColors(value, inverted)
+    return PillColors(background = colors.container, text = colors.content)
 }
 
 private fun Float.asMetricValue(): Double =

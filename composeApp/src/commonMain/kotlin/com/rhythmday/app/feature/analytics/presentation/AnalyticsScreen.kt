@@ -75,9 +75,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
+import com.rhythmday.app.core.designsystem.scoreAccentColor
 import com.rhythmday.app.core.domain.model.DayEntry
-import com.rhythmday.app.core.domain.model.DAY_METRIC_MAX_VALUE
-import com.rhythmday.app.core.domain.model.DAY_METRIC_MIN_VALUE
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
@@ -1250,16 +1249,7 @@ private val AnalyticsMetric.color: Color
     }
 
 private fun AnalyticsMetric.pointColor(value: Double): Color {
-    val levelValue = if (this == AnalyticsMetric.STRESS) {
-        DAY_METRIC_MIN_VALUE + DAY_METRIC_MAX_VALUE - value
-    } else {
-        value
-    }
-    return when {
-        levelValue >= 8.0 -> RhythmDayPalette.GoodDay
-        levelValue >= 5.0 -> RhythmDayPalette.MediumDay
-        else -> RhythmDayPalette.HardDay
-    }
+    return scoreAccentColor(value, inverted = this == AnalyticsMetric.STRESS)
 }
 
 private fun AnalyticsUiState.rangeSubtitle(): String = formatDateRange(rangeStart, rangeEnd)

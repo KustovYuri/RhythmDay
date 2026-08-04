@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
+import com.rhythmday.app.core.designsystem.scoreColors
 import com.rhythmday.app.core.domain.model.DayEntry
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
@@ -298,7 +299,7 @@ private fun CalendarDayCell(
     }
 
     val entry = day.entry
-    val colors = entry?.overallScore?.scoreColors()
+    val colors = entry?.overallScore?.let(::scoreColors)
     val shape = CardShape
     val clickModifier = if (entry == null) {
         Modifier
@@ -310,8 +311,8 @@ private fun CalendarDayCell(
         modifier = modifier
             .height(42.dp)
             .clip(shape)
-            .background(colors?.cellBackground ?: EmptyCellBackground)
-            .border(1.dp, colors?.cellBorder ?: RhythmDayPalette.Line, shape)
+            .background(colors?.container ?: EmptyCellBackground)
+            .border(1.dp, colors?.border ?: RhythmDayPalette.Line, shape)
             .then(clickModifier),
         contentAlignment = Alignment.Center
     ) {
@@ -333,13 +334,13 @@ private fun CalendarDayCell(
                     fontSize = 13.sp,
                     lineHeight = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color = colors!!.cellText.copy(alpha = 0.84f)
+                    color = colors!!.content.copy(alpha = 0.84f)
                 )
                 Box(
                     modifier = Modifier
                         .size(width = 26.dp, height = 14.dp)
                         .clip(RoundedCornerShape(6.dp))
-                        .background(colors.badgeBackground),
+                        .background(colors.accent),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -399,7 +400,7 @@ private fun EntryRow(
     entry: DayEntry,
     onClick: () -> Unit
 ) {
-    val colors = entry.overallScore.scoreColors()
+    val colors = scoreColors(entry.overallScore)
 
     Row(
         modifier = Modifier
@@ -461,7 +462,7 @@ private fun EntryRow(
             modifier = Modifier
                 .size(48.dp)
                 .clip(CardShape)
-                .background(colors.badgeBackground),
+                .background(colors.accent),
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -493,13 +494,6 @@ private data class CalendarDay(
     val entry: DayEntry?
 )
 
-private data class ScoreColors(
-    val cellBackground: Color,
-    val cellText: Color,
-    val cellBorder: Color,
-    val badgeBackground: Color
-)
-
 private fun calendarCells(month: LocalDate, entries: List<DayEntry>): List<CalendarDay?> {
     val entriesByDay = entries.associateBy { entry -> entry.date.day }
     val firstWeekdayOffset = month.dayOfWeek.isoDayNumber - 1
@@ -512,29 +506,6 @@ private fun calendarCells(month: LocalDate, entries: List<DayEntry>): List<Calen
     while (cells.size % 7 != 0) cells += null
 
     return cells
-}
-
-private fun Double.scoreColors(): ScoreColors = when {
-    this >= 8.0 -> ScoreColors(
-        cellBackground = Color(0xFFE4F3EA),
-        cellText = Color(0xFF2D7841),
-        cellBorder = Color(0xFFBBE0C7),
-        badgeBackground = RhythmDayPalette.GoodDay
-    )
-
-    this >= 5.0 -> ScoreColors(
-        cellBackground = Color(0xFFFFF4D8),
-        cellText = Color(0xFF896617),
-        cellBorder = Color(0xFFECD892),
-        badgeBackground = RhythmDayPalette.MediumDay
-    )
-
-    else -> ScoreColors(
-        cellBackground = Color(0xFFF7EBE8),
-        cellText = Color(0xFF8C4D45),
-        cellBorder = Color(0xFFEBD1CC),
-        badgeBackground = RhythmDayPalette.HardDay
-    )
 }
 
 private fun Double.asDisplayScore(): String {

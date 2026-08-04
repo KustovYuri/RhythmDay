@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rhythmday.app.core.designsystem.RhythmDayIcons
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
+import com.rhythmday.app.core.designsystem.scoreAccentColor
 import com.rhythmday.app.core.domain.model.DayEntry
 import com.rhythmday.app.feature.home.domain.HomeDashboard
 import com.rhythmday.app.feature.home.domain.WeekSummary
@@ -604,7 +605,7 @@ private fun PreviousEntryCard(
                     modifier = Modifier
                         .size(54.dp)
                         .clip(CardShape)
-                        .background(scoreColor(entry.overallScore)),
+                        .background(scoreAccentColor(entry.overallScore)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -672,12 +673,6 @@ private fun PrototypeIconButton(
             modifier = Modifier.size(iconSize)
         )
     }
-}
-
-private fun scoreColor(score: Double): Color = when {
-    score >= 8.0 -> RhythmDayPalette.GoodDay
-    score >= 5.0 -> RhythmDayPalette.MediumDay
-    else -> RhythmDayPalette.HardDay
 }
 
 private fun Double.asScore(): String {

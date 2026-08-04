@@ -45,6 +45,17 @@ class DemoDataSeeder(
                 entry.tags.map { tag -> DayEntryTagCrossRef(entry.id, tag) }
             }
         )
+
+        val mediumEntries = entries.filter { entry -> entry.id < 0L }
+        dao.addMediumDemoData(
+            entries = mediumEntries.map(DayEntry::toEntity),
+            tags = tagNames.mapIndexed { index, tag ->
+                DayTagEntity(name = tag, sortOrder = index.toLong())
+            },
+            entryTags = mediumEntries.flatMap { entry ->
+                entry.tags.map { tag -> DayEntryTagCrossRef(entry.id, tag) }
+            }
+        )
     }
 }
 
@@ -52,25 +63,66 @@ internal fun createDemoEntries(
     today: LocalDate,
     now: Instant,
     scoreCalculator: DayScoreCalculatorUseCase
-): List<DayEntry> = (1..DEMO_HISTORY_DAYS)
-    .filter { dayOffset -> dayOffset <= 14 || dayOffset % 5 != 0 }
-    .mapIndexed { index, dayOffset ->
-        val template = DemoDayTemplates[index % DemoDayTemplates.size]
-        val metrics = createDemoMetrics(index)
-        DayEntry(
-            id = (index + 1).toLong(),
-            date = today.minus(dayOffset, DateTimeUnit.DAY),
-            metrics = metrics,
-            overallScore = scoreCalculator(metrics),
-            tags = template.tags,
-            title = template.title,
-            note = template.note,
-            savedAt = now - dayOffset.days - (index % 6).hours
-        )
-    }
+): List<DayEntry> {
+    val variedEntries = (1..DEMO_HISTORY_DAYS)
+        .filter { dayOffset -> dayOffset <= 14 || dayOffset % 5 != 0 }
+        .mapIndexed { index, dayOffset ->
+            createDemoEntry(
+                id = (index + 1).toLong(),
+                dayOffset = dayOffset,
+                metrics = createDemoMetrics(index),
+                template = DemoDayTemplates[index % DemoDayTemplates.size],
+                today = today,
+                now = now,
+                scoreCalculator = scoreCalculator
+            )
+        }
+    val mediumEntries = (15..DEMO_HISTORY_DAYS step 5)
+        .mapIndexed { index, dayOffset ->
+            createDemoEntry(
+                id = -(index + 1).toLong(),
+                dayOffset = dayOffset,
+                metrics = createMediumDemoMetrics(index),
+                template = MediumDayTemplates[index % MediumDayTemplates.size],
+                today = today,
+                now = now,
+                scoreCalculator = scoreCalculator
+            )
+        }
+
+    return (variedEntries + mediumEntries).sortedBy(DayEntry::date)
+}
+
+private fun createDemoEntry(
+    id: Long,
+    dayOffset: Int,
+    metrics: DayMetrics,
+    template: DemoDayTemplate,
+    today: LocalDate,
+    now: Instant,
+    scoreCalculator: DayScoreCalculatorUseCase
+): DayEntry = DayEntry(
+    id = id,
+    date = today.minus(dayOffset, DateTimeUnit.DAY),
+    metrics = metrics,
+    overallScore = scoreCalculator(metrics),
+    tags = template.tags,
+    title = template.title,
+    note = template.note,
+    savedAt = now - dayOffset.days - (dayOffset % 6).hours
+)
 
 private fun createDemoMetrics(index: Int): DayMetrics {
     val profile = DemoMetricProfiles[index % DemoMetricProfiles.size]
+    return createVariedMetrics(profile, index)
+}
+
+private fun createMediumDemoMetrics(index: Int): DayMetrics {
+    val profile = MediumMetricProfiles[index % MediumMetricProfiles.size]
+    return createVariedMetrics(profile, index)
+}
+
+private fun createVariedMetrics(profile: DemoMetricProfile, index: Int): DayMetrics {
     return DayMetrics(
         energy = variedMetric(profile.energy, index, phase = 0.3),
         mood = variedMetric(profile.mood, index, phase = 1.5),
@@ -127,6 +179,48 @@ private val DemoMetricProfiles = listOf(
     DemoMetricProfile(6.8, 8.7, 8.3, 7.4, 9.1, 7.2, 2.1),
     DemoMetricProfile(6.2, 8.0, 8.1, 7.0, 5.0, 8.8, 1.9),
     DemoMetricProfile(2.6, 3.8, 2.5, 3.1, 2.2, 4.0, 7.8)
+)
+
+private val MediumMetricProfiles = listOf(
+    DemoMetricProfile(5.6, 6.1, 5.8, 5.4, 4.7, 6.2, 4.8),
+    DemoMetricProfile(4.4, 5.2, 5.0, 4.7, 6.3, 5.5, 5.9),
+    DemoMetricProfile(6.5, 5.8, 6.1, 6.4, 3.8, 5.2, 4.9),
+    DemoMetricProfile(5.1, 4.6, 5.4, 5.0, 7.2, 4.8, 6.2),
+    DemoMetricProfile(6.8, 6.3, 5.9, 6.0, 5.6, 6.6, 5.5),
+    DemoMetricProfile(4.2, 4.8, 4.5, 5.6, 4.9, 5.0, 5.7)
+)
+
+private val MediumDayTemplates = listOf(
+    DemoDayTemplate(
+        title = "Обычный рабочий день",
+        tags = listOf("Работа", "Дом"),
+        note = "День прошёл спокойно: основные задачи сделал, но без особого запаса энергии."
+    ),
+    DemoDayTemplate(
+        title = "Дела без спешки",
+        tags = listOf("Дом", "Прогулка"),
+        note = "Занимался повседневными делами и немного прогулялся вечером."
+    ),
+    DemoDayTemplate(
+        title = "Немного устал",
+        tags = listOf("Работа", "Плохой сон"),
+        note = "Из-за недосыпа работалось медленнее, но всё необходимое удалось закончить."
+    ),
+    DemoDayTemplate(
+        title = "Спокойный будний день",
+        tags = listOf("Спокойствие", "Дом"),
+        note = "Ничего выдающегося не произошло, день получился ровным и предсказуемым."
+    ),
+    DemoDayTemplate(
+        title = "Всё по плану",
+        tags = listOf("Учёба", "Продуктивность"),
+        note = "Продвинулся по плану, хотя на сложные задачи концентрации немного не хватало."
+    ),
+    DemoDayTemplate(
+        title = "Смешанный день",
+        tags = listOf("Люди", "Дом", "Отдых"),
+        note = "Были и приятные моменты, и усталость, поэтому впечатление от дня осталось смешанным."
+    )
 )
 
 private val DemoDayTemplates = listOf(

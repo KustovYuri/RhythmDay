@@ -22,9 +22,9 @@ object RhythmDayPalette {
     val TealDark = Color(0xFF0F756C)
     val Amber = Color(0xFFDFA425)
     val Green = Color(0xFF4F9F63)
-    val HardDay = Color(0xFFB86D63)
-    val MediumDay = Color(0xFFBD891B)
-    val GoodDay = Color(0xFF3F8F54)
+    val HardDay = Color(0xFFBB6059)
+    val MediumDay = Color(0xFFBE861A)
+    val GoodDay = Color(0xFF3E9353)
 }
 
 private val RhythmDayColors = lightColorScheme(

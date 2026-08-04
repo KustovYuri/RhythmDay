@@ -26,7 +26,7 @@ abstract class RhythmDayDao {
     protected abstract suspend fun upsertEntryEntity(entry: DayEntryEntity)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    protected abstract suspend fun insertEntryEntities(entries: List<DayEntryEntity>)
+    protected abstract suspend fun insertEntryEntities(entries: List<DayEntryEntity>): List<Long>
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     protected abstract suspend fun insertTagEntity(tag: DayTagEntity): Long
@@ -103,6 +103,28 @@ abstract class RhythmDayDao {
         )
     }
 
+    @Transaction
+    open suspend fun addMediumDemoData(
+        entries: List<DayEntryEntity>,
+        tags: List<DayTagEntity>,
+        entryTags: List<DayEntryTagCrossRef>
+    ) {
+        if (metadataValue(MEDIUM_DEMO_DATA_INITIALIZED_KEY) != null) return
+
+        insertTagEntities(tags)
+        val insertedEntryIds = entries
+            .zip(insertEntryEntities(entries))
+            .filter { (_, rowId) -> rowId != -1L }
+            .mapTo(mutableSetOf()) { (entry, _) -> entry.id }
+        insertEntryTags(entryTags.filter { crossRef -> crossRef.entryId in insertedEntryIds })
+        upsertMetadata(
+            DatabaseMetadataEntity(
+                key = MEDIUM_DEMO_DATA_INITIALIZED_KEY,
+                value = "true"
+            )
+        )
+    }
+
     private suspend fun insertMissingTags(tags: List<String>) {
         var sortOrder = nextTagSortOrder()
         tags.forEach { tag ->
@@ -114,5 +136,6 @@ abstract class RhythmDayDao {
     private companion object {
         const val DEFAULT_TAGS_INITIALIZED_KEY = "default_tags_initialized"
         const val DEMO_DATA_INITIALIZED_KEY = "debug_demo_data_initialized_v1"
+        const val MEDIUM_DEMO_DATA_INITIALIZED_KEY = "debug_medium_demo_data_initialized_v1"
     }
 }

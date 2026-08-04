@@ -25,6 +25,8 @@ class DemoDataSeederTest {
         assertTrue(entries.map { entry -> entry.overallScore }.distinct().size >= 20)
         assertTrue(entries.count { entry -> entry.overallScore >= 8.0 } >= 40)
         assertTrue(entries.count { entry -> entry.overallScore <= 4.5 } >= 15)
+        assertTrue(entries.count { entry -> entry.overallScore in 4.0..<7.0 } >= 30)
+        assertTrue(entries.filter { entry -> entry.id < 0L }.all { entry -> entry.overallScore in 4.0..<7.0 })
         assertTrue(entries.maxOf { entry -> entry.overallScore } >= 9.0)
         assertTrue(entries.minOf { entry -> entry.overallScore } <= 3.5)
     }

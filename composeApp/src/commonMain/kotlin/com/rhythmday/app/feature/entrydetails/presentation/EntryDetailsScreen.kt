@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -39,7 +40,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.rhythmday.app.core.designsystem.GOOD_SCORE_THRESHOLD
+import com.rhythmday.app.core.designsystem.MEDIUM_SCORE_THRESHOLD
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
+import com.rhythmday.app.core.designsystem.scoreAccentColor
 import com.rhythmday.app.core.domain.model.DayEntry
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -385,26 +389,19 @@ private fun metricItems(entry: DayEntry): List<MetricItem> = listOf(
     MetricItem("социальность", entry.metrics.sociality)
 )
 
-private fun scoreStyle(score: Double): ScoreStyle = when {
-    score >= 8.0 -> ScoreStyle(
-        startColor = Color(0xFF54A266),
-        endColor = Color(0xFF2F7D49),
-        scoreColor = RhythmDayPalette.GoodDay,
-        dayLabel = "Хороший день"
-    )
+private fun scoreStyle(score: Double): ScoreStyle {
+    val scoreColor = scoreAccentColor(score)
+    val dayLabel = when {
+        score >= GOOD_SCORE_THRESHOLD -> "Хороший день"
+        score >= MEDIUM_SCORE_THRESHOLD -> "Средний день"
+        else -> "Тяжелый день"
+    }
 
-    score >= 5.0 -> ScoreStyle(
-        startColor = Color(0xFFC99A35),
-        endColor = Color(0xFFA87818),
-        scoreColor = RhythmDayPalette.MediumDay,
-        dayLabel = "Средний день"
-    )
-
-    else -> ScoreStyle(
-        startColor = Color(0xFFC9837B),
-        endColor = Color(0xFFA75E56),
-        scoreColor = RhythmDayPalette.HardDay,
-        dayLabel = "Тяжелый день"
+    return ScoreStyle(
+        startColor = lerp(scoreColor, Color.White, 0.13f),
+        endColor = lerp(scoreColor, Color.Black, 0.1f),
+        scoreColor = scoreColor,
+        dayLabel = dayLabel
     )
 }
 
