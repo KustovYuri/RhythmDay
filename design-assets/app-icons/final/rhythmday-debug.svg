@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" role="img" aria-labelledby="title description">
+  <title id="title">RhythmDay debug icon</title>
+  <desc id="description">The RhythmDay sun and rhythm wave on a darker teal debug background.</desc>
+  <defs>
+    <clipPath id="sun-above-wave" clipPathUnits="userSpaceOnUse">
+      <path d="M0 0h108v68H89c-5.5 0-7-5-13-5-8 0-8 12-16 12s-9-18-18-18c-9 0-12 11-23 11H0Z"/>
+    </clipPath>
+  </defs>
+
+  <rect width="108" height="108" fill="#07564F"/>
+
+  <g transform="translate(0 4)">
+    <g fill="none" stroke="#FFB617" stroke-width="4.2" stroke-linecap="round">
+      <path d="M54 23v8"/>
+      <path d="M37.8 28l4 7"/>
+      <path d="M70.2 28l-4 7"/>
+      <path d="M25.8 37.5l7 4"/>
+      <path d="M82.2 37.5l-7 4"/>
+      <path d="M22 51h8"/>
+      <path d="M86 51h-8"/>
+    </g>
+
+    <circle cx="54" cy="59" r="20.5" fill="#FFB617" clip-path="url(#sun-above-wave)"/>
+
+    <path
+      d="M19 68c11 0 14-11 23-11 9 0 10 18 18 18s8-12 16-12c6 0 7.5 5 13 5"
+      fill="none"
+      stroke="#FFFDF8"
+      stroke-width="3.6"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </g>
+</svg>

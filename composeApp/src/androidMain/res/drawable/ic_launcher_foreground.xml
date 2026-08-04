@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <group android:translateY="4">
+        <path
+            android:fillColor="@android:color/transparent"
+            android:pathData="M54,23 L54,31 M37.8,28 L41.8,35 M70.2,28 L66.2,35 M25.8,37.5 L32.8,41.5 M82.2,37.5 L75.2,41.5 M22,51 L30,51 M86,51 L78,51"
+            android:strokeColor="@color/ic_launcher_sun"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="4.2" />
+
+        <group>
+            <clip-path
+                android:name="sun_above_wave"
+                android:pathData="M0,0 L108,0 L108,68 L89,68 C83.5,68 82,63 76,63 C68,63 68,75 60,75 C52,75 51,57 42,57 C33,57 30,68 19,68 L0,68 Z" />
+
+            <path
+                android:fillColor="@color/ic_launcher_sun"
+                android:pathData="M54,38.5 A20.5,20.5 0,1 1,54 79.5 A20.5,20.5 0,1 1,54 38.5" />
+        </group>
+
+        <path
+            android:fillColor="@android:color/transparent"
+            android:pathData="M19,68 C30,68 33,57 42,57 C51,57 52,75 60,75 C68,75 68,63 76,63 C82,63 83.5,68 89,68"
+            android:strokeColor="@color/ic_launcher_wave"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="3.6" />
+    </group>
+</vector>
