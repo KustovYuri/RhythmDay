@@ -24,12 +24,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,6 +73,7 @@ fun HomeRoute(
     onEditEntry: (Long) -> Unit,
     onOpenHistory: () -> Unit,
     onOpenAnalytics: () -> Unit,
+    onOpenSettings: () -> Unit,
     onOpenEntry: (Long) -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -90,6 +96,7 @@ fun HomeRoute(
             onStartBlitz = { showToast("Функционал в разработке") },
             onOpenHistory = onOpenHistory,
             onOpenAnalytics = onOpenAnalytics,
+            onOpenSettings = onOpenSettings,
             onOpenEntry = onOpenEntry
         )
 
@@ -115,6 +122,7 @@ private fun HomeScreen(
     onStartBlitz: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenAnalytics: () -> Unit,
+    onOpenSettings: () -> Unit,
     onOpenEntry: (Long) -> Unit
 ) {
     LazyColumn(
@@ -128,7 +136,7 @@ private fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            HomeHeader(dashboard.currentDate)
+            HomeHeader(dashboard.currentDate, onOpenSettings)
         }
         item {
             TodayCard(
@@ -157,8 +165,11 @@ private fun HomeScreen(
 
 @Composable
 private fun HomeHeader(
-    date: LocalDate
+    date: LocalDate,
+    onOpenSettings: () -> Unit
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -170,14 +181,34 @@ private fun HomeHeader(
             color = RhythmDayPalette.Ink,
             modifier = Modifier.weight(1f)
         )
-        PrototypeIconButton(
-            icon = RhythmDayIcons.Profile,
-            contentDescription = "Профиль",
-            onClick = {},
-            enabled = false,
-            size = 42.dp,
-            iconSize = 21.dp
-        )
+        Box {
+            PrototypeIconButton(
+                icon = RhythmDayIcons.Profile,
+                contentDescription = "Открыть меню профиля",
+                onClick = { menuExpanded = true },
+                size = 42.dp,
+                iconSize = 21.dp
+            )
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+                containerColor = RhythmDayPalette.Panel,
+                shape = CardShape
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Профиль") },
+                    onClick = {},
+                    enabled = false
+                )
+                DropdownMenuItem(
+                    text = { Text("Настройки") },
+                    onClick = {
+                        menuExpanded = false
+                        onOpenSettings()
+                    }
+                )
+            }
+        }
     }
 }
 

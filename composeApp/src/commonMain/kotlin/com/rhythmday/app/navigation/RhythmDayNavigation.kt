@@ -30,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,6 +56,8 @@ import com.rhythmday.app.feature.createentry.presentation.CreateEntryRoute as Cr
 import com.rhythmday.app.feature.entrydetails.presentation.EntryDetailsRoute as EntryDetailsScreenRoute
 import com.rhythmday.app.feature.history.presentation.HistoryRoute as HistoryScreenRoute
 import com.rhythmday.app.feature.home.presentation.HomeRoute
+import com.rhythmday.app.feature.settings.presentation.SettingsRoute as SettingsScreenRoute
+import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import org.koin.compose.viewmodel.koinViewModel
@@ -100,7 +103,7 @@ private data class TopLevelDestination(
 )
 
 @Composable
-fun RhythmDayNavigation() {
+fun RhythmDayNavigation(openCreateEntryRequests: Flow<Unit>) {
     val backStack = rememberNavBackStack(navigationStateConfiguration, HomeRouteKey)
     val coroutineScope = rememberCoroutineScope()
     val dayEntryRepository = koinInject<DayEntryRepository>()
@@ -170,6 +173,10 @@ fun RhythmDayNavigation() {
         navigateToTopLevel(CreateEntryRoute)
         updateNavigationDirection(detailsRoute)
         backStack.add(detailsRoute)
+    }
+
+    LaunchedEffect(openCreateEntryRequests) {
+        openCreateEntryRequests.collect { openCreateEntry() }
     }
 
     fun navigateBack() {
@@ -250,6 +257,7 @@ fun RhythmDayNavigation() {
                         onEditEntry = { entryId -> open(EditEntryRoute(entryId)) },
                         onOpenHistory = { openTopLevel(HistoryRoute) },
                         onOpenAnalytics = { openTopLevel(AnalyticsRoute) },
+                        onOpenSettings = { open(SettingsRoute) },
                         onOpenEntry = { entryId -> open(EntryDetailsRoute(entryId)) }
                     )
                 }
@@ -292,7 +300,11 @@ fun RhythmDayNavigation() {
                     NestedPlaceholder("Блиц-опрос", ::navigateBack)
                 }
                 entry<SettingsRoute> {
-                    NestedPlaceholder("Настройки", ::navigateBack)
+                    SettingsScreenRoute(
+                        viewModel = koinViewModel(),
+                        contentPadding = contentPadding,
+                        onBack = ::navigateBack
+                    )
                 }
                 entry<EntryDetailsRoute> { route ->
                     EntryDetailsScreenRoute(
