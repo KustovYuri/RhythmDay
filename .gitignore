@@ -3,6 +3,8 @@
 build/
 **/build/
 local.properties
+keystore.properties
+AGENTS.md
 .idea/
 *.iml
 *.hprof

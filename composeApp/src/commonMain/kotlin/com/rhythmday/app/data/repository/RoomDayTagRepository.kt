@@ -30,7 +30,7 @@ class RoomDayTagRepository(
     }
 }
 
-private val DefaultDayTags = listOf(
+internal val DefaultDayTags = listOf(
     "Работа",
     "Прогулка",
     "Спорт",

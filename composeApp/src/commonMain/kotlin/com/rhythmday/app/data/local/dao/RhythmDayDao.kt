@@ -26,6 +26,9 @@ abstract class RhythmDayDao {
     protected abstract suspend fun upsertEntryEntity(entry: DayEntryEntity)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
+    protected abstract suspend fun insertEntryEntities(entries: List<DayEntryEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     protected abstract suspend fun insertTagEntity(tag: DayTagEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
@@ -45,6 +48,9 @@ abstract class RhythmDayDao {
 
     @Query("SELECT value FROM database_metadata WHERE `key` = :key LIMIT 1")
     protected abstract suspend fun metadataValue(key: String): String?
+
+    @Query("SELECT COUNT(*) FROM day_entries")
+    protected abstract suspend fun entryCount(): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     protected abstract suspend fun upsertMetadata(metadata: DatabaseMetadataEntity)
@@ -76,6 +82,27 @@ abstract class RhythmDayDao {
         )
     }
 
+    @Transaction
+    open suspend fun initializeDemoData(
+        entries: List<DayEntryEntity>,
+        tags: List<DayTagEntity>,
+        entryTags: List<DayEntryTagCrossRef>
+    ) {
+        if (metadataValue(DEMO_DATA_INITIALIZED_KEY) != null) return
+
+        if (entryCount() == 0L) {
+            insertTagEntities(tags)
+            insertEntryEntities(entries)
+            insertEntryTags(entryTags)
+        }
+        upsertMetadata(
+            DatabaseMetadataEntity(
+                key = DEMO_DATA_INITIALIZED_KEY,
+                value = "true"
+            )
+        )
+    }
+
     private suspend fun insertMissingTags(tags: List<String>) {
         var sortOrder = nextTagSortOrder()
         tags.forEach { tag ->
@@ -86,5 +113,6 @@ abstract class RhythmDayDao {
 
     private companion object {
         const val DEFAULT_TAGS_INITIALIZED_KEY = "default_tags_initialized"
+        const val DEMO_DATA_INITIALIZED_KEY = "debug_demo_data_initialized_v1"
     }
 }

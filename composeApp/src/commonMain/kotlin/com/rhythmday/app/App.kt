@@ -9,10 +9,13 @@ import org.koin.compose.KoinApplication
 import org.koin.dsl.koinConfiguration
 
 @Composable
-fun App(database: RhythmDayDatabase) {
+fun App(
+    database: RhythmDayDatabase,
+    seedDemoData: Boolean = false
+) {
     KoinApplication(
         configuration = koinConfiguration {
-            modules(appModule(database))
+            modules(appModule(database, seedDemoData))
         }
     ) {
         RhythmDayTheme {

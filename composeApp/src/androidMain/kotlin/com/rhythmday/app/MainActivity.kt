@@ -10,7 +10,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val database = (application as RhythmDayApplication).database
-        setContent { App(database) }
+        setContent {
+            App(
+                database = database,
+                seedDemoData = BuildConfig.SEED_DEMO_DATA
+            )
+        }
     }
 }
 
