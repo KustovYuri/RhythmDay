@@ -70,6 +70,7 @@ fun HomeRoute(
     viewModel: HomeViewModel,
     contentPadding: PaddingValues,
     onCreateEntry: () -> Unit,
+    onStartBlitz: () -> Unit,
     onEditEntry: (Long) -> Unit,
     onOpenHistory: () -> Unit,
     onOpenAnalytics: () -> Unit,
@@ -78,7 +79,6 @@ fun HomeRoute(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val dashboard = state.dashboard
-    val showToast = rememberToastPresenter()
 
     when {
         state.isLoading -> Box(
@@ -93,7 +93,7 @@ fun HomeRoute(
             contentPadding = contentPadding,
             onCreateEntry = onCreateEntry,
             onEditEntry = onEditEntry,
-            onStartBlitz = { showToast("Функционал в разработке") },
+            onStartBlitz = onStartBlitz,
             onOpenHistory = onOpenHistory,
             onOpenAnalytics = onOpenAnalytics,
             onOpenSettings = onOpenSettings,

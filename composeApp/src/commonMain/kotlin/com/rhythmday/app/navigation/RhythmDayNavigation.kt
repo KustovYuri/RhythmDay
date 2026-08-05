@@ -52,6 +52,7 @@ import com.rhythmday.app.core.designsystem.RhythmDayIcons
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
 import com.rhythmday.app.core.domain.repository.DayEntryRepository
 import com.rhythmday.app.feature.analytics.presentation.AnalyticsRoute as AnalyticsScreenRoute
+import com.rhythmday.app.feature.blitz.presentation.BlitzRoute as BlitzScreenRoute
 import com.rhythmday.app.feature.createentry.presentation.CreateEntryRoute as CreateEntryScreenRoute
 import com.rhythmday.app.feature.entrydetails.presentation.EntryDetailsRoute as EntryDetailsScreenRoute
 import com.rhythmday.app.feature.history.presentation.HistoryRoute as HistoryScreenRoute
@@ -204,7 +205,7 @@ fun RhythmDayNavigation(openCreateEntryRequests: Flow<Unit>) {
 
     val currentRoute = backStack.lastOrNull() as? AppRoute
     val selectedTopLevelRoute = when (currentRoute) {
-        is EntryDetailsRoute, is EditEntryRoute -> backStack
+        is EntryDetailsRoute, is EditEntryRoute, BlitzRoute -> backStack
             .dropLast(1)
             .mapNotNull { route -> route as? AppRoute }
             .lastOrNull { route -> route.topLevelIndex() != null }
@@ -254,6 +255,7 @@ fun RhythmDayNavigation(openCreateEntryRequests: Flow<Unit>) {
                         viewModel = koinViewModel(),
                         contentPadding = contentPadding,
                         onCreateEntry = ::openCreateEntry,
+                        onStartBlitz = { open(BlitzRoute) },
                         onEditEntry = { entryId -> open(EditEntryRoute(entryId)) },
                         onOpenHistory = { openTopLevel(HistoryRoute) },
                         onOpenAnalytics = { openTopLevel(AnalyticsRoute) },
@@ -297,7 +299,12 @@ fun RhythmDayNavigation(openCreateEntryRequests: Flow<Unit>) {
                     PlaceholderContent("Функционал в разработке", contentPadding)
                 }
                 entry<BlitzRoute> {
-                    NestedPlaceholder("Блиц-опрос", ::navigateBack)
+                    BlitzScreenRoute(
+                        viewModel = koinViewModel(),
+                        contentPadding = contentPadding,
+                        onBack = ::navigateBack,
+                        onFinished = ::navigateBack
+                    )
                 }
                 entry<SettingsRoute> {
                     SettingsScreenRoute(

@@ -9,6 +9,7 @@ import com.rhythmday.app.data.local.RhythmDayDatabase
 import com.rhythmday.app.data.repository.DemoDataSeeder
 import com.rhythmday.app.data.repository.RoomDayEntryRepository
 import com.rhythmday.app.data.repository.RoomDayTagRepository
+import com.rhythmday.app.feature.blitz.presentation.BlitzViewModel
 import com.rhythmday.app.feature.analytics.presentation.AnalyticsViewModel
 import com.rhythmday.app.feature.createentry.presentation.CreateEntryViewModel
 import com.rhythmday.app.feature.entrydetails.presentation.EntryDetailsViewModel
@@ -45,6 +46,7 @@ fun appModule(
     single { SaveDayEntryUseCase(get(), get()) }
     single { ObserveHomeDashboardUseCase(get()) }
     single { ObserveDayEntryUseCase(get()) }
+    viewModel { BlitzViewModel(get(), get()) }
     viewModel { CreateEntryViewModel(get(), get(), get()) }
     viewModel { AnalyticsViewModel(get()) }
     viewModel { HistoryViewModel(get()) }
