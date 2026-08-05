@@ -82,10 +82,36 @@ class SettingsViewModelTest {
             Dispatchers.resetMain()
         }
     }
+
+    @Test
+    fun reportsWhenExactReminderCannotBeScheduled() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val repository = TestReminderSettingsRepository(ReminderSettings(enabled = true))
+        val scheduler = TestDailyReminderScheduler(scheduleSucceeds = false)
+        val viewModel = SettingsViewModel(repository, scheduler)
+        try {
+            val collection = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                viewModel.uiState.collect()
+            }
+            advanceUntilIdle()
+
+            assertTrue(viewModel.uiState.value.reminderEnabled)
+            assertTrue(viewModel.uiState.value.permissionDenied)
+            assertEquals(listOf(20 to 0), scheduler.scheduledTimes)
+
+            collection.cancel()
+        } finally {
+            viewModel.viewModelScope.cancel()
+            advanceUntilIdle()
+            Dispatchers.resetMain()
+        }
+    }
 }
 
-private class TestReminderSettingsRepository : ReminderSettingsRepository {
-    private val mutableSettings = MutableStateFlow(ReminderSettings())
+private class TestReminderSettingsRepository(
+    initialSettings: ReminderSettings = ReminderSettings()
+) : ReminderSettingsRepository {
+    private val mutableSettings = MutableStateFlow(initialSettings)
 
     override val settings: StateFlow<ReminderSettings> = mutableSettings
 
@@ -94,12 +120,15 @@ private class TestReminderSettingsRepository : ReminderSettingsRepository {
     }
 }
 
-private class TestDailyReminderScheduler : DailyReminderScheduler {
+private class TestDailyReminderScheduler(
+    private val scheduleSucceeds: Boolean = true
+) : DailyReminderScheduler {
     val scheduledTimes = mutableListOf<Pair<Int, Int>>()
     var cancelCount = 0
 
-    override fun schedule(hour: Int, minute: Int) {
+    override fun schedule(hour: Int, minute: Int): Boolean {
         scheduledTimes += hour to minute
+        return scheduleSucceeds
     }
 
     override fun cancel() {

@@ -5,13 +5,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 
 @Composable
-actual fun rememberNotificationPermissionRequester(
+actual fun rememberReminderPermissionRequester(
     onResult: (Boolean) -> Unit
-): NotificationPermissionRequester {
+): ReminderPermissionRequester {
     val currentOnResult = rememberUpdatedState(onResult)
     return remember {
-        object : NotificationPermissionRequester {
+        object : ReminderPermissionRequester {
             override fun request() {
+                currentOnResult.value(true)
+            }
+
+            override fun check() {
                 currentOnResult.value(true)
             }
         }

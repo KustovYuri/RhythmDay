@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,8 +60,12 @@ fun SettingsRoute(
     onBack: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val permissionRequester = rememberNotificationPermissionRequester { granted ->
+    val permissionRequester = rememberReminderPermissionRequester { granted ->
         if (granted) viewModel.enableReminder() else viewModel.showPermissionDenied()
+    }
+
+    LaunchedEffect(state.reminderEnabled) {
+        if (state.reminderEnabled) permissionRequester.check()
     }
 
     SettingsScreen(
@@ -70,7 +75,8 @@ fun SettingsRoute(
         onReminderEnabledChange = { enabled ->
             if (enabled) permissionRequester.request() else viewModel.disableReminder()
         },
-        onReminderTimeChange = viewModel::setReminderTime
+        onReminderTimeChange = viewModel::setReminderTime,
+        onRequestPermission = permissionRequester::request
     )
 }
 
@@ -80,7 +86,8 @@ private fun SettingsScreen(
     contentPadding: PaddingValues,
     onBack: () -> Unit,
     onReminderEnabledChange: (Boolean) -> Unit,
-    onReminderTimeChange: (Int, Int) -> Unit
+    onReminderTimeChange: (Int, Int) -> Unit,
+    onRequestPermission: () -> Unit
 ) {
     var showTimePicker by remember { mutableStateOf(false) }
 
@@ -101,7 +108,8 @@ private fun SettingsScreen(
             ReminderCard(
                 state = state,
                 onEnabledChange = onReminderEnabledChange,
-                onOpenTimePicker = { showTimePicker = true }
+                onOpenTimePicker = { showTimePicker = true },
+                onRequestPermission = onRequestPermission
             )
         }
     }
@@ -157,7 +165,8 @@ private fun SettingsHeader(onBack: () -> Unit) {
 private fun ReminderCard(
     state: SettingsUiState,
     onEnabledChange: (Boolean) -> Unit,
-    onOpenTimePicker: () -> Unit
+    onOpenTimePicker: () -> Unit,
+    onRequestPermission: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -250,13 +259,34 @@ private fun ReminderCard(
             }
 
             if (state.permissionDenied) {
-                Text(
-                    text = "Уведомления запрещены в настройках устройства",
+                Column(
                     modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp,
-                    color = MaterialTheme.colorScheme.error
-                )
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Разрешите уведомления и точные напоминания в настройках устройства",
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Row(
+                        modifier = Modifier
+                            .height(38.dp)
+                            .clip(CardShape)
+                            .background(ControlBackground)
+                            .clickable(role = Role.Button, onClick = onRequestPermission)
+                            .padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Разрешить",
+                            fontSize = 13.sp,
+                            lineHeight = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = RhythmDayPalette.TealDark
+                        )
+                    }
+                }
             }
         }
     }

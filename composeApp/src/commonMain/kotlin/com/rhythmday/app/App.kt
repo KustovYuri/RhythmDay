@@ -20,7 +20,8 @@ fun App(
     seedDemoData: Boolean = false,
     reminderSettingsRepository: ReminderSettingsRepository = InMemoryReminderSettingsRepository,
     dailyReminderScheduler: DailyReminderScheduler = NoOpDailyReminderScheduler,
-    openCreateEntryRequests: Flow<Unit> = emptyFlow()
+    openCreateEntryRequests: Flow<Unit> = emptyFlow(),
+    openBlitzRequests: Flow<Unit> = emptyFlow()
 ) {
     KoinApplication(
         configuration = koinConfiguration {
@@ -35,7 +36,10 @@ fun App(
         }
     ) {
         RhythmDayTheme {
-            RhythmDayNavigation(openCreateEntryRequests)
+            RhythmDayNavigation(
+                openCreateEntryRequests = openCreateEntryRequests,
+                openBlitzRequests = openBlitzRequests
+            )
         }
     }
 }

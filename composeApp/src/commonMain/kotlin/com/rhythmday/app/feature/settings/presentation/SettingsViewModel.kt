@@ -42,12 +42,11 @@ class SettingsViewModel(
 
     init {
         repository.settings.value.takeIf { settings -> settings.enabled }?.let { settings ->
-            scheduler.schedule(settings.hour, settings.minute)
+            permissionDenied.value = !scheduler.schedule(settings.hour, settings.minute)
         }
     }
 
     fun enableReminder() {
-        permissionDenied.value = false
         updateSettings(enabled = true)
     }
 
@@ -65,7 +64,9 @@ class SettingsViewModel(
         val updated = current.copy(hour = hour, minute = minute)
         viewModelScope.launch {
             repository.save(updated)
-            if (updated.enabled) scheduler.schedule(updated.hour, updated.minute)
+            if (updated.enabled) {
+                permissionDenied.value = !scheduler.schedule(updated.hour, updated.minute)
+            }
         }
     }
 
@@ -74,7 +75,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             repository.save(updated)
             if (enabled) {
-                scheduler.schedule(updated.hour, updated.minute)
+                permissionDenied.value = !scheduler.schedule(updated.hour, updated.minute)
             } else {
                 scheduler.cancel()
             }

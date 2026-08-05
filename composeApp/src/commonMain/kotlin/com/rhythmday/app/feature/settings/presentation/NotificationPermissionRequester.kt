@@ -2,11 +2,13 @@ package com.rhythmday.app.feature.settings.presentation
 
 import androidx.compose.runtime.Composable
 
-interface NotificationPermissionRequester {
+interface ReminderPermissionRequester {
     fun request()
+
+    fun check()
 }
 
 @Composable
-expect fun rememberNotificationPermissionRequester(
+expect fun rememberReminderPermissionRequester(
     onResult: (Boolean) -> Unit
-): NotificationPermissionRequester
+): ReminderPermissionRequester

@@ -50,6 +50,7 @@ import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import com.rhythmday.app.core.designsystem.RhythmDayIcons
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
+import com.rhythmday.app.core.domain.model.DayEntry
 import com.rhythmday.app.core.domain.repository.DayEntryRepository
 import com.rhythmday.app.feature.analytics.presentation.AnalyticsRoute as AnalyticsScreenRoute
 import com.rhythmday.app.feature.blitz.presentation.BlitzRoute as BlitzScreenRoute
@@ -59,6 +60,7 @@ import com.rhythmday.app.feature.history.presentation.HistoryRoute as HistoryScr
 import com.rhythmday.app.feature.home.presentation.HomeRoute
 import com.rhythmday.app.feature.settings.presentation.SettingsRoute as SettingsScreenRoute
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import org.koin.compose.viewmodel.koinViewModel
@@ -104,7 +106,10 @@ private data class TopLevelDestination(
 )
 
 @Composable
-fun RhythmDayNavigation(openCreateEntryRequests: Flow<Unit>) {
+fun RhythmDayNavigation(
+    openCreateEntryRequests: Flow<Unit>,
+    openBlitzRequests: Flow<Unit>
+) {
     val backStack = rememberNavBackStack(navigationStateConfiguration, HomeRouteKey)
     val coroutineScope = rememberCoroutineScope()
     val dayEntryRepository = koinInject<DayEntryRepository>()
@@ -160,9 +165,9 @@ fun RhythmDayNavigation(openCreateEntryRequests: Flow<Unit>) {
         }
     }
 
-    fun openCreateEntry() {
+    fun openCreateEntry(currentEntries: List<DayEntry> = entries) {
         val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
-        val todayEntryId = entries.firstOrNull { entry -> entry.date == today }?.id
+        val todayEntryId = currentEntries.firstOrNull { entry -> entry.date == today }?.id
         if (todayEntryId == null) {
             openTopLevel(CreateEntryRoute)
             return
@@ -176,8 +181,25 @@ fun RhythmDayNavigation(openCreateEntryRequests: Flow<Unit>) {
         backStack.add(detailsRoute)
     }
 
+    fun openBlitz(currentEntries: List<DayEntry> = entries) {
+        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+        if (currentEntries.any { entry -> entry.date == today }) {
+            openCreateEntry(currentEntries)
+        } else {
+            open(BlitzRoute)
+        }
+    }
+
     LaunchedEffect(openCreateEntryRequests) {
-        openCreateEntryRequests.collect { openCreateEntry() }
+        openCreateEntryRequests.collect {
+            openCreateEntry(entriesFlow.first())
+        }
+    }
+
+    LaunchedEffect(openBlitzRequests) {
+        openBlitzRequests.collect {
+            openBlitz(entriesFlow.first())
+        }
     }
 
     fun navigateBack() {
@@ -254,8 +276,8 @@ fun RhythmDayNavigation(openCreateEntryRequests: Flow<Unit>) {
                     HomeRoute(
                         viewModel = koinViewModel(),
                         contentPadding = contentPadding,
-                        onCreateEntry = ::openCreateEntry,
-                        onStartBlitz = { open(BlitzRoute) },
+                        onCreateEntry = { openCreateEntry() },
+                        onStartBlitz = { openBlitz() },
                         onEditEntry = { entryId -> open(EditEntryRoute(entryId)) },
                         onOpenHistory = { openTopLevel(HistoryRoute) },
                         onOpenAnalytics = { openTopLevel(AnalyticsRoute) },

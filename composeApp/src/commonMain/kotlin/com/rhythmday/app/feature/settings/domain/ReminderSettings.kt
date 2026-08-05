@@ -21,7 +21,7 @@ interface ReminderSettingsRepository {
 }
 
 interface DailyReminderScheduler {
-    fun schedule(hour: Int, minute: Int)
+    fun schedule(hour: Int, minute: Int): Boolean
 
     fun cancel()
 }
@@ -37,7 +37,7 @@ object InMemoryReminderSettingsRepository : ReminderSettingsRepository {
 }
 
 object NoOpDailyReminderScheduler : DailyReminderScheduler {
-    override fun schedule(hour: Int, minute: Int) = Unit
+    override fun schedule(hour: Int, minute: Int): Boolean = true
 
     override fun cancel() = Unit
 }
