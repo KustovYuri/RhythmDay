@@ -21,6 +21,9 @@ import com.rhythmday.app.feature.settings.domain.NoOpDailyReminderScheduler
 import com.rhythmday.app.feature.settings.domain.InMemoryReminderSettingsRepository
 import com.rhythmday.app.feature.settings.domain.ReminderSettingsRepository
 import com.rhythmday.app.feature.settings.presentation.SettingsViewModel
+import com.rhythmday.app.feature.auth.domain.AuthRepository
+import com.rhythmday.app.feature.auth.domain.InMemoryAuthRepository
+import com.rhythmday.app.feature.auth.presentation.AuthViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
@@ -28,7 +31,8 @@ fun appModule(
     database: RhythmDayDatabase,
     seedDemoData: Boolean = false,
     reminderSettingsRepository: ReminderSettingsRepository = InMemoryReminderSettingsRepository,
-    dailyReminderScheduler: DailyReminderScheduler = NoOpDailyReminderScheduler
+    dailyReminderScheduler: DailyReminderScheduler = NoOpDailyReminderScheduler,
+    authRepository: AuthRepository = InMemoryAuthRepository()
 ) = module {
     single { database }
     single { database.rhythmDayDao() }
@@ -43,6 +47,7 @@ fun appModule(
     single<DayTagRepository> { RoomDayTagRepository(get()) }
     single { reminderSettingsRepository }
     single { dailyReminderScheduler }
+    single { authRepository }
     single { SaveDayEntryUseCase(get(), get()) }
     single { ObserveHomeDashboardUseCase(get()) }
     single { ObserveDayEntryUseCase(get()) }
@@ -58,4 +63,5 @@ fun appModule(
     }
     viewModel { HomeViewModel(get()) }
     viewModel { SettingsViewModel(get(), get()) }
+    viewModel { AuthViewModel(get()) }
 }

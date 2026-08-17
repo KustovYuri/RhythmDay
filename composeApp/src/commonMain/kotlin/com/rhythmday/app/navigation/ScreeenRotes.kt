@@ -30,4 +30,13 @@ data object BlitzRoute : AppRoute
 data object SettingsRoute : AppRoute
 
 @Serializable
+data object ProfileRoute : AppRoute
+
+@Serializable
+data object ChangeEmailRoute : AppRoute
+
+@Serializable
+data object ChangePasswordRoute : AppRoute
+
+@Serializable
 data class EntryDetailsRoute(val entryId: Long) : AppRoute

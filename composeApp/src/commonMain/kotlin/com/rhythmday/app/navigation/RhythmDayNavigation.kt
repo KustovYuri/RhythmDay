@@ -53,6 +53,14 @@ import com.rhythmday.app.core.designsystem.RhythmDayPalette
 import com.rhythmday.app.core.domain.model.DayEntry
 import com.rhythmday.app.core.domain.repository.DayEntryRepository
 import com.rhythmday.app.feature.analytics.presentation.AnalyticsRoute as AnalyticsScreenRoute
+import com.rhythmday.app.feature.auth.domain.AuthSession
+import com.rhythmday.app.feature.auth.presentation.AuthFlow
+import com.rhythmday.app.feature.auth.presentation.AuthLoadingScreen
+import com.rhythmday.app.feature.auth.presentation.AuthStartDestination
+import com.rhythmday.app.feature.auth.presentation.AuthViewModel
+import com.rhythmday.app.feature.auth.presentation.ChangeEmailRoute as ChangeEmailScreenRoute
+import com.rhythmday.app.feature.auth.presentation.ChangePasswordRoute as ChangePasswordScreenRoute
+import com.rhythmday.app.feature.auth.presentation.ProfileRoute as ProfileScreenRoute
 import com.rhythmday.app.feature.blitz.presentation.BlitzRoute as BlitzScreenRoute
 import com.rhythmday.app.feature.createentry.presentation.CreateEntryRoute as CreateEntryScreenRoute
 import com.rhythmday.app.feature.entrydetails.presentation.EntryDetailsRoute as EntryDetailsScreenRoute
@@ -87,6 +95,9 @@ private val navigationStateConfiguration = SavedStateConfiguration {
             subclass(AiRoute::class, AiRoute.serializer())
             subclass(BlitzRoute::class, BlitzRoute.serializer())
             subclass(SettingsRoute::class, SettingsRoute.serializer())
+            subclass(ProfileRoute::class, ProfileRoute.serializer())
+            subclass(ChangeEmailRoute::class, ChangeEmailRoute.serializer())
+            subclass(ChangePasswordRoute::class, ChangePasswordRoute.serializer())
             subclass(EntryDetailsRoute::class, EntryDetailsRoute.serializer())
         }
     }
@@ -109,6 +120,56 @@ private data class TopLevelDestination(
 fun RhythmDayNavigation(
     openCreateEntryRequests: Flow<Unit>,
     openBlitzRequests: Flow<Unit>
+) {
+    val authViewModel = koinViewModel<AuthViewModel>()
+    val session by authViewModel.session.collectAsStateWithLifecycle()
+    var guestMode by remember { mutableStateOf(false) }
+    var authStartDestination by remember { mutableStateOf(AuthStartDestination.Login) }
+
+    LaunchedEffect(session) {
+        if (session is AuthSession.Authenticated) guestMode = false
+    }
+
+    when (session) {
+        AuthSession.Loading -> AuthLoadingScreen()
+        AuthSession.SignedOut -> {
+            if (guestMode) {
+                MainNavigation(
+                    authViewModel = authViewModel,
+                    isGuest = true,
+                    openCreateEntryRequests = openCreateEntryRequests,
+                    openBlitzRequests = openBlitzRequests,
+                    onRequireAuth = { destination ->
+                        authStartDestination = destination
+                        guestMode = false
+                    }
+                )
+            } else {
+                AuthFlow(
+                    viewModel = authViewModel,
+                    initialDestination = authStartDestination,
+                    onContinueAsGuest = { guestMode = true }
+                )
+            }
+        }
+
+        is AuthSession.Authenticated -> MainNavigation(
+            authViewModel = authViewModel,
+            isGuest = false,
+            openCreateEntryRequests = openCreateEntryRequests,
+            openBlitzRequests = openBlitzRequests,
+            onRequireAuth = {}
+        )
+    }
+}
+
+@Composable
+private fun MainNavigation(
+    authViewModel: AuthViewModel,
+    isGuest: Boolean,
+    openCreateEntryRequests: Flow<Unit>,
+    openBlitzRequests: Flow<Unit>,
+    onRequireAuth: (AuthStartDestination) -> Unit
 ) {
     val backStack = rememberNavBackStack(navigationStateConfiguration, HomeRouteKey)
     val coroutineScope = rememberCoroutineScope()
@@ -281,7 +342,7 @@ fun RhythmDayNavigation(
                         onEditEntry = { entryId -> open(EditEntryRoute(entryId)) },
                         onOpenHistory = { openTopLevel(HistoryRoute) },
                         onOpenAnalytics = { openTopLevel(AnalyticsRoute) },
-                        onOpenSettings = { open(SettingsRoute) },
+                        onOpenProfile = { open(ProfileRoute) },
                         onOpenEntry = { entryId -> open(EntryDetailsRoute(entryId)) }
                     )
                 }
@@ -331,6 +392,33 @@ fun RhythmDayNavigation(
                 entry<SettingsRoute> {
                     SettingsScreenRoute(
                         viewModel = koinViewModel(),
+                        contentPadding = contentPadding,
+                        onBack = ::navigateBack
+                    )
+                }
+                entry<ProfileRoute> {
+                    ProfileScreenRoute(
+                        viewModel = authViewModel,
+                        isGuest = isGuest,
+                        contentPadding = contentPadding,
+                        onBack = ::navigateBack,
+                        onOpenSettings = { open(SettingsRoute) },
+                        onChangeEmail = { open(ChangeEmailRoute) },
+                        onChangePassword = { open(ChangePasswordRoute) },
+                        onOpenLogin = { onRequireAuth(AuthStartDestination.Login) },
+                        onOpenRegistration = { onRequireAuth(AuthStartDestination.Registration) }
+                    )
+                }
+                entry<ChangeEmailRoute> {
+                    ChangeEmailScreenRoute(
+                        viewModel = authViewModel,
+                        contentPadding = contentPadding,
+                        onBack = ::navigateBack
+                    )
+                }
+                entry<ChangePasswordRoute> {
+                    ChangePasswordScreenRoute(
+                        viewModel = authViewModel,
                         contentPadding = contentPadding,
                         onBack = ::navigateBack
                     )

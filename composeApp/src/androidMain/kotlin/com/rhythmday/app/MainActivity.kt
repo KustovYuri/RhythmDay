@@ -10,6 +10,7 @@ import com.rhythmday.app.feature.settings.data.AndroidReminderSettingsRepository
 import com.rhythmday.app.feature.settings.data.OPEN_BLITZ_ACTION
 import com.rhythmday.app.feature.settings.data.OPEN_CREATE_ENTRY_ACTION
 import com.rhythmday.app.feature.settings.data.dismissDailyReminderNotification
+import com.rhythmday.app.feature.auth.data.createAuthRepository
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
 
@@ -19,6 +20,9 @@ class MainActivity : ComponentActivity() {
     }
     private val dailyReminderScheduler by lazy {
         AndroidDailyReminderScheduler(applicationContext)
+    }
+    private val authRepository by lazy {
+        createAuthRepository(applicationContext)
     }
     private val openCreateEntryRequests = Channel<Unit>(capacity = Channel.BUFFERED)
     private val openCreateEntryRequestsFlow = openCreateEntryRequests.receiveAsFlow()
@@ -36,6 +40,7 @@ class MainActivity : ComponentActivity() {
                 seedDemoData = BuildConfig.SEED_DEMO_DATA,
                 reminderSettingsRepository = reminderSettingsRepository,
                 dailyReminderScheduler = dailyReminderScheduler,
+                authRepository = authRepository,
                 openCreateEntryRequests = openCreateEntryRequestsFlow,
                 openBlitzRequests = openBlitzRequestsFlow
             )

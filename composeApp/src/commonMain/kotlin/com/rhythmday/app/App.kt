@@ -8,6 +8,8 @@ import com.rhythmday.app.feature.settings.domain.DailyReminderScheduler
 import com.rhythmday.app.feature.settings.domain.InMemoryReminderSettingsRepository
 import com.rhythmday.app.feature.settings.domain.NoOpDailyReminderScheduler
 import com.rhythmday.app.feature.settings.domain.ReminderSettingsRepository
+import com.rhythmday.app.feature.auth.domain.AuthRepository
+import com.rhythmday.app.feature.auth.domain.InMemoryAuthRepository
 import com.rhythmday.app.navigation.RhythmDayNavigation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -20,6 +22,7 @@ fun App(
     seedDemoData: Boolean = false,
     reminderSettingsRepository: ReminderSettingsRepository = InMemoryReminderSettingsRepository,
     dailyReminderScheduler: DailyReminderScheduler = NoOpDailyReminderScheduler,
+    authRepository: AuthRepository = InMemoryAuthRepository(),
     openCreateEntryRequests: Flow<Unit> = emptyFlow(),
     openBlitzRequests: Flow<Unit> = emptyFlow()
 ) {
@@ -30,7 +33,8 @@ fun App(
                     database = database,
                     seedDemoData = seedDemoData,
                     reminderSettingsRepository = reminderSettingsRepository,
-                    dailyReminderScheduler = dailyReminderScheduler
+                    dailyReminderScheduler = dailyReminderScheduler,
+                    authRepository = authRepository
                 )
             )
         }

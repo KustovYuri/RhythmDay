@@ -3,8 +3,10 @@
 import androidx.compose.ui.window.ComposeUIViewController
 import com.rhythmday.app.data.local.buildRhythmDayDatabase
 import com.rhythmday.app.data.local.createDatabaseBuilder
+import com.rhythmday.app.feature.auth.data.createAuthRepository
 
 fun MainViewController() = buildRhythmDayDatabase(createDatabaseBuilder()).let { database ->
-    ComposeUIViewController { App(database) }
+    val authRepository = createAuthRepository()
+    ComposeUIViewController { App(database = database, authRepository = authRepository) }
 }
 
