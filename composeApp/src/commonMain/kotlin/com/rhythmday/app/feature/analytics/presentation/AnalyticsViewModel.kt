@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rhythmday.app.core.domain.model.DayEntry
 import com.rhythmday.app.core.domain.repository.DayEntryRepository
+import com.rhythmday.app.core.presentation.UserMessageManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -76,7 +77,8 @@ class AnalyticsViewModel(
     repository: DayEntryRepository,
     currentDate: () -> LocalDate = {
         Clock.System.todayIn(TimeZone.currentSystemDefault())
-    }
+    },
+    messages: UserMessageManager = UserMessageManager()
 ) : ViewModel() {
     private val today = currentDate()
     private val defaultPeriodStart = today.minus(2, DateTimeUnit.MONTH)
@@ -107,7 +109,8 @@ class AnalyticsViewModel(
                 entries = allEntries.filter { entry -> entry.date in rangeStart..rangeEnd }
             )
         }
-        .catch {
+        .catch { error ->
+            messages.showError(error, "Не удалось загрузить аналитику")
             val controls = controls.value
             emit(
                 AnalyticsUiState(

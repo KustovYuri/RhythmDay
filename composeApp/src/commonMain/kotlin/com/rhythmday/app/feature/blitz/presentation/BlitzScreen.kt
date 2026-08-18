@@ -26,6 +26,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -769,20 +770,12 @@ private fun CompleteCard(
             }
         }
         PrimaryButton(
-            text = if (state.isSaving) "Сохранение..." else "Сохранить",
+            text = "Сохранить",
             enabled = state.isComplete && !state.isSaving,
+            isBusy = state.isSaving,
             onClick = onFinish,
             modifier = Modifier.padding(top = 16.dp)
         )
-        if (state.errorMessage != null) {
-            Text(
-                text = state.errorMessage,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-            )
-        }
         SecondaryButton(
             text = "Изменить ответы",
             enabled = !state.isSaving,
@@ -842,6 +835,7 @@ private fun ResultItem(
 private fun PrimaryButton(
     text: String,
     enabled: Boolean,
+    isBusy: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -850,18 +844,32 @@ private fun PrimaryButton(
             .fillMaxWidth()
             .height(46.dp)
             .clip(CardShape)
-            .background(if (enabled) RhythmDayPalette.Teal else ControlBackground)
+            .background(
+                when {
+                    isBusy -> RhythmDayPalette.Teal.copy(alpha = 0.64f)
+                    enabled -> RhythmDayPalette.Teal
+                    else -> ControlBackground
+                }
+            )
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = text,
-            fontSize = 14.sp,
-            lineHeight = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (enabled) Color.White else RhythmDayPalette.Muted
-        )
+        if (isBusy) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(19.dp),
+                color = Color.White,
+                strokeWidth = 2.dp
+            )
+        } else {
+            Text(
+                text = text,
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (enabled) Color.White else RhythmDayPalette.Muted
+            )
+        }
     }
 }
 

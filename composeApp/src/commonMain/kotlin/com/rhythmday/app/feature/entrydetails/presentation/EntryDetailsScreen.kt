@@ -45,6 +45,7 @@ import com.rhythmday.app.core.designsystem.MEDIUM_SCORE_THRESHOLD
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
 import com.rhythmday.app.core.designsystem.scoreAccentColor
 import com.rhythmday.app.core.domain.model.DayEntry
+import com.rhythmday.app.core.presentation.RefreshableContent
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.isoDayNumber
@@ -57,17 +58,25 @@ private val DetailFieldBackground = Color(0xFFF0F4F7)
 fun EntryDetailsRoute(
     viewModel: EntryDetailsViewModel,
     contentPadding: PaddingValues,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     onBack: () -> Unit,
     onEdit: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    EntryDetailsScreen(
-        state = state,
-        contentPadding = contentPadding,
-        onBack = onBack,
-        onEdit = onEdit
-    )
+    RefreshableContent(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        EntryDetailsScreen(
+            state = state,
+            contentPadding = contentPadding,
+            onBack = onBack,
+            onEdit = onEdit
+        )
+    }
 }
 
 @Composable

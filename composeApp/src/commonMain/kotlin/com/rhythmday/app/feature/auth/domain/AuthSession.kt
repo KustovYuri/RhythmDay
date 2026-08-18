@@ -6,7 +6,9 @@ import kotlinx.coroutines.flow.StateFlow
 data class UserProfile(
     val firstName: String,
     val lastName: String,
-    val email: String
+    val email: String,
+    val id: String? = null,
+    val timezone: String = "UTC"
 ) {
     val fullName: String
         get() = listOf(firstName, lastName).filter(String::isNotBlank).joinToString(" ")
@@ -28,11 +30,28 @@ sealed interface AuthSession {
 interface AuthRepository {
     val session: StateFlow<AuthSession>
 
-    suspend fun signIn(email: String)
+    suspend fun signIn(email: String, password: String)
 
-    suspend fun register(firstName: String, lastName: String, email: String)
+    suspend fun register(
+        firstName: String,
+        lastName: String,
+        email: String,
+        password: String,
+        passwordConfirmation: String,
+        timezone: String
+    )
 
     suspend fun updateEmail(email: String)
+
+    suspend fun requestPasswordReset(email: String)
+
+    suspend fun changePassword(
+        currentPassword: String,
+        newPassword: String,
+        newPasswordConfirmation: String
+    )
+
+    suspend fun resetPassword(token: String, newPassword: String, newPasswordConfirmation: String)
 
     suspend fun signOut()
 }
@@ -43,7 +62,7 @@ class InMemoryAuthRepository : AuthRepository {
 
     override val session: StateFlow<AuthSession> = mutableSession
 
-    override suspend fun signIn(email: String) {
+    override suspend fun signIn(email: String, password: String) {
         val normalizedEmail = email.trim().lowercase()
         val profile = savedProfile
             ?.takeIf { saved -> saved.email.equals(normalizedEmail, ignoreCase = true) }
@@ -56,11 +75,19 @@ class InMemoryAuthRepository : AuthRepository {
         mutableSession.value = AuthSession.Authenticated(profile)
     }
 
-    override suspend fun register(firstName: String, lastName: String, email: String) {
+    override suspend fun register(
+        firstName: String,
+        lastName: String,
+        email: String,
+        password: String,
+        passwordConfirmation: String,
+        timezone: String
+    ) {
         val profile = UserProfile(
             firstName = firstName.trim().asDisplayName(),
             lastName = lastName.trim().asDisplayName(),
-            email = email.trim().lowercase()
+            email = email.trim().lowercase(),
+            timezone = timezone
         )
         savedProfile = profile
         mutableSession.value = AuthSession.Authenticated(profile)
@@ -72,6 +99,20 @@ class InMemoryAuthRepository : AuthRepository {
         savedProfile = updated
         mutableSession.value = AuthSession.Authenticated(updated)
     }
+
+    override suspend fun requestPasswordReset(email: String) = Unit
+
+    override suspend fun changePassword(
+        currentPassword: String,
+        newPassword: String,
+        newPasswordConfirmation: String
+    ) = Unit
+
+    override suspend fun resetPassword(
+        token: String,
+        newPassword: String,
+        newPasswordConfirmation: String
+    ) = Unit
 
     override suspend fun signOut() {
         mutableSession.value = AuthSession.SignedOut

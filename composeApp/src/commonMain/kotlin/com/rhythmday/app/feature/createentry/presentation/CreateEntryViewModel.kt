@@ -10,6 +10,8 @@ import com.rhythmday.app.core.domain.model.DAY_TITLE_MAX_LENGTH
 import com.rhythmday.app.core.domain.repository.DayTagRepository
 import com.rhythmday.app.core.domain.usecase.ObserveDayEntryUseCase
 import com.rhythmday.app.core.domain.usecase.SaveDayEntryUseCase
+import com.rhythmday.app.core.presentation.UserMessageManager
+import com.rhythmday.app.core.presentation.toRussianUserMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -67,7 +69,8 @@ enum class CreateEntryMetric {
 class CreateEntryViewModel(
     private val saveDayEntryUseCase: SaveDayEntryUseCase,
     private val observeDayEntryUseCase: ObserveDayEntryUseCase,
-    private val dayTagRepository: DayTagRepository
+    private val dayTagRepository: DayTagRepository,
+    private val messages: UserMessageManager = UserMessageManager()
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(CreateEntryUiState())
     val uiState: StateFlow<CreateEntryUiState> = _uiState.asStateFlow()
@@ -93,17 +96,21 @@ class CreateEntryViewModel(
         entryLoadJob = viewModelScope.launch {
             runCatching { observeDayEntryUseCase(entryId).first() }
                 .onSuccess { entry ->
-                    _uiState.value = entry?.toUiState(_uiState.value.availableTags)
-                        ?: CreateEntryUiState(
+                    _uiState.value = entry?.toUiState(_uiState.value.availableTags) ?: run {
+                        messages.show("Запись не найдена")
+                        CreateEntryUiState(
                             availableTags = _uiState.value.availableTags,
                             errorMessage = "Запись не найдена"
                         )
+                    }
                 }
                 .onFailure {
                     if (it is CancellationException) throw it
+                    val message = it.toRussianUserMessage("Не удалось загрузить запись")
+                    messages.show(message)
                     _uiState.value = CreateEntryUiState(
                         availableTags = _uiState.value.availableTags,
-                        errorMessage = "Не удалось загрузить запись"
+                        errorMessage = message
                     )
                 }
         }
@@ -151,7 +158,7 @@ class CreateEntryViewModel(
         }
         viewModelScope.launch {
             runCatching { dayTagRepository.deleteTag(tag) }
-                .onFailure { showTagOperationError() }
+                .onFailure(::showTagOperationError)
         }
     }
 
@@ -167,7 +174,7 @@ class CreateEntryViewModel(
         }
         viewModelScope.launch {
             runCatching { dayTagRepository.addTag(cleanTag) }
-                .onFailure { showTagOperationError() }
+                .onFailure(::showTagOperationError)
         }
     }
 
@@ -213,11 +220,13 @@ class CreateEntryViewModel(
                 _uiState.update { currentState ->
                     currentState.copy(isSaving = false, isSaved = true)
                 }
-            }.onFailure {
+            }.onFailure { error ->
+                val message = error.toRussianUserMessage("Не удалось сохранить запись")
+                messages.show(message)
                 _uiState.update { currentState ->
                     currentState.copy(
                         isSaving = false,
-                        errorMessage = "Не удалось сохранить запись"
+                        errorMessage = message
                     )
                 }
             }
@@ -274,16 +283,18 @@ class CreateEntryViewModel(
 
         tagsLoadJob = viewModelScope.launch {
             dayTagRepository.observeTags()
-                .catch { showTagOperationError() }
+                .catch { error -> showTagOperationError(error) }
                 .collect { tags ->
                     _uiState.update { state -> state.copy(availableTags = tags) }
                 }
         }
     }
 
-    private fun showTagOperationError() {
+    private fun showTagOperationError(error: Throwable) {
+        val message = error.toRussianUserMessage("Не удалось обновить теги")
+        messages.show(message)
         _uiState.update { state ->
-            state.copy(errorMessage = "Не удалось обновить теги")
+            state.copy(errorMessage = message)
         }
     }
 }

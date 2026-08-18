@@ -130,11 +130,13 @@ android {
             versionNameSuffix = "-dev"
             manifestPlaceholders["appLabel"] = "Ритм дня Dev"
             buildConfigField("boolean", "SEED_DEMO_DATA", "true")
+            buildConfigField("String", "API_BASE_URL", "\"http://10.115.87.130:8080\"")
         }
         getByName("release") {
             isDebuggable = false
             manifestPlaceholders["appLabel"] = "Ритм дня"
             buildConfigField("boolean", "SEED_DEMO_DATA", "false")
+            buildConfigField("String", "API_BASE_URL", "\"\"")
             signingConfig = signingConfigs.getByName("release")
         }
     }

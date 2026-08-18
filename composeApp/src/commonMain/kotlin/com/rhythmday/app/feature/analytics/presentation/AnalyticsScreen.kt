@@ -77,6 +77,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
 import com.rhythmday.app.core.designsystem.scoreAccentColor
 import com.rhythmday.app.core.domain.model.DayEntry
+import com.rhythmday.app.core.presentation.RefreshableContent
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
@@ -121,21 +122,29 @@ private data class ChartVerticalScale(
 fun AnalyticsRoute(
     viewModel: AnalyticsViewModel,
     contentPadding: PaddingValues,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     onOpenEntry: (Long) -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    AnalyticsScreen(
-        state = state,
-        contentPadding = contentPadding,
-        onRangeSelected = viewModel::selectRange,
-        onModeSelected = viewModel::selectMode,
-        onMetricToggled = viewModel::toggleMetric,
-        onMetricOpened = viewModel::showMetric,
-        onPeriodStartChanged = viewModel::setPeriodStart,
-        onPeriodEndChanged = viewModel::setPeriodEnd,
-        onOpenEntry = onOpenEntry
-    )
+    RefreshableContent(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        AnalyticsScreen(
+            state = state,
+            contentPadding = contentPadding,
+            onRangeSelected = viewModel::selectRange,
+            onModeSelected = viewModel::selectMode,
+            onMetricToggled = viewModel::toggleMetric,
+            onMetricOpened = viewModel::showMetric,
+            onPeriodStartChanged = viewModel::setPeriodStart,
+            onPeriodEndChanged = viewModel::setPeriodEnd,
+            onOpenEntry = onOpenEntry
+        )
+    }
 }
 
 @Composable

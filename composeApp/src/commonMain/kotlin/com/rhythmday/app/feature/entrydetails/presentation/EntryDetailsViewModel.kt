@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rhythmday.app.core.domain.model.DayEntry
 import com.rhythmday.app.core.domain.usecase.ObserveDayEntryUseCase
+import com.rhythmday.app.core.presentation.UserMessageManager
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
@@ -18,13 +19,15 @@ data class EntryDetailsUiState(
 
 class EntryDetailsViewModel(
     entryId: Long,
-    observeDayEntryUseCase: ObserveDayEntryUseCase
+    observeDayEntryUseCase: ObserveDayEntryUseCase,
+    messages: UserMessageManager = UserMessageManager()
 ) : ViewModel() {
     val uiState: StateFlow<EntryDetailsUiState> = observeDayEntryUseCase(entryId)
         .map { entry ->
             EntryDetailsUiState(isLoading = false, entry = entry)
         }
-        .catch {
+        .catch { error ->
+            messages.showError(error, "Не удалось загрузить запись")
             emit(
                 EntryDetailsUiState(
                     isLoading = false,

@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.rhythmday.app.core.domain.model.DayMetrics
 import com.rhythmday.app.core.domain.usecase.DayScoreCalculatorUseCase
 import com.rhythmday.app.core.domain.usecase.SaveDayEntryUseCase
+import com.rhythmday.app.core.presentation.UserMessageManager
+import com.rhythmday.app.core.presentation.toRussianUserMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,7 +59,8 @@ data class BlitzUiState(
 
 class BlitzViewModel(
     private val saveDayEntryUseCase: SaveDayEntryUseCase,
-    private val scoreCalculator: DayScoreCalculatorUseCase
+    private val scoreCalculator: DayScoreCalculatorUseCase,
+    private val messages: UserMessageManager = UserMessageManager()
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(BlitzUiState())
     val uiState: StateFlow<BlitzUiState> = _uiState.asStateFlow()
@@ -131,11 +134,13 @@ class BlitzViewModel(
                 }
             } catch (error: CancellationException) {
                 throw error
-            } catch (_: Throwable) {
+            } catch (error: Throwable) {
+                val message = error.toRussianUserMessage("Не удалось сохранить блиц-опрос")
+                messages.show(message)
                 _uiState.update { state ->
                     state.copy(
                         isSaving = false,
-                        errorMessage = "Не удалось сохранить блиц-опрос"
+                        errorMessage = message
                     )
                 }
             }

@@ -4,17 +4,17 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.rhythmday.app.data.local.buildRhythmDayDatabase
 import com.rhythmday.app.data.local.createDatabaseBuilder
-import com.rhythmday.app.feature.auth.data.createAuthRepository
+import com.rhythmday.app.feature.auth.data.createPlatformBackendDependencies
 
 fun main() {
     val database = buildRhythmDayDatabase(createDatabaseBuilder())
-    val authRepository = createAuthRepository()
+    val backendDependencies = createPlatformBackendDependencies()
     application {
         Window(
             onCloseRequest = ::exitApplication,
             title = "RhythmDay"
         ) {
-            App(database = database, authRepository = authRepository)
+            App(database = database, backendDependencies = backendDependencies)
         }
     }
 }

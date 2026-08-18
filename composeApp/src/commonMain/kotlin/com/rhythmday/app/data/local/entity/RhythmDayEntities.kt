@@ -11,7 +11,10 @@ import androidx.room.Relation
 
 @Entity(
     tableName = "day_entries",
-    indices = [Index(value = ["date_epoch_day"], unique = true)]
+    indices = [
+        Index(value = ["date_epoch_day"], unique = true),
+        Index(value = ["remote_id"], unique = true)
+    ]
 )
 data class DayEntryEntity(
     @PrimaryKey val id: Long,
@@ -26,13 +29,32 @@ data class DayEntryEntity(
     @ColumnInfo(name = "overall_score") val overallScore: Double,
     val title: String?,
     val note: String?,
-    @ColumnInfo(name = "saved_at_epoch_milliseconds") val savedAtEpochMilliseconds: Long?
+    @ColumnInfo(name = "saved_at_epoch_milliseconds") val savedAtEpochMilliseconds: Long?,
+    @ColumnInfo(name = "remote_id") val remoteId: String? = null,
+    @ColumnInfo(name = "server_version") val serverVersion: Long? = null,
+    @ColumnInfo(name = "sync_pending") val syncPending: Boolean = true,
+    @ColumnInfo(name = "local_revision") val localRevision: Long = 0,
+    @ColumnInfo(name = "remote_updated_at_epoch_milliseconds")
+    val remoteUpdatedAtEpochMilliseconds: Long? = null
 )
 
-@Entity(tableName = "day_tags")
+@Entity(
+    tableName = "day_tags",
+    indices = [Index(value = ["remote_id"], unique = true)]
+)
 data class DayTagEntity(
     @PrimaryKey val name: String,
-    @ColumnInfo(name = "sort_order") val sortOrder: Long
+    @ColumnInfo(name = "sort_order") val sortOrder: Long,
+    @ColumnInfo(name = "remote_id") val remoteId: String? = null,
+    @ColumnInfo(name = "default_tag") val defaultTag: Boolean = false,
+    @ColumnInfo(name = "sync_pending") val syncPending: Boolean = true
+)
+
+@Entity(tableName = "pending_tag_deletions")
+data class PendingTagDeletionEntity(
+    @PrimaryKey
+    @ColumnInfo(name = "remote_id") val remoteId: String,
+    val name: String
 )
 
 @Entity(

@@ -14,7 +14,7 @@ internal fun emailError(value: String): String? = when {
 
 internal fun passwordError(value: String): String? = when {
     value.isBlank() -> "Введите пароль"
-    value.length < 8 -> "Минимум 8 символов"
+    value.length < 12 -> "Минимум 12 символов"
     value.none(Char::isLetter) || value.none(Char::isDigit) -> "Добавьте буквы и цифры"
     else -> null
 }

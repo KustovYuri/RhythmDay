@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rhythmday.app.core.designsystem.RhythmDayAppIcon
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
+import kotlinx.datetime.TimeZone
 
 enum class AuthStartDestination {
     Login,
@@ -181,7 +182,6 @@ private fun LoginScreen(
             fontWeight = FontWeight.Bold,
             color = RhythmDayPalette.TealDark
         )
-        operation.errorMessage?.let { message -> AuthError(message) }
         GuestEntry(onClick = onContinueAsGuest)
         PrimaryAuthButton(
             text = "Войти",
@@ -189,7 +189,7 @@ private fun LoginScreen(
             onClick = {
                 submitted = true
                 if (emailError(email) == null && passwordError(password) == null) {
-                    viewModel.signIn(email)
+                    viewModel.signIn(email, password)
                 }
             }
         )
@@ -219,7 +219,6 @@ private fun RegistrationScreen(
         contentTopPadding = 28.dp,
         centerContent = false,
         footerContent = {
-            operation.errorMessage?.let { message -> AuthError(message) }
             PrimaryAuthButton(
                 text = "Создать аккаунт",
                 isBusy = operation.isBusy,
@@ -232,7 +231,16 @@ private fun RegistrationScreen(
                         passwordError(password),
                         confirmationError(password, confirmation)
                     ).all { error -> error == null }
-                    if (valid) viewModel.register(firstName, lastName, email)
+                    if (valid) {
+                        viewModel.register(
+                            firstName = firstName,
+                            lastName = lastName,
+                            email = email,
+                            password = password,
+                            passwordConfirmation = confirmation,
+                            timezone = TimeZone.currentSystemDefault().id
+                        )
+                    }
                 }
             )
             AuthSwitchRow(
@@ -330,7 +338,7 @@ private fun PasswordRecoveryScreen(
                 isBusy = operation.isBusy,
                 onClick = {
                     submitted = true
-                    if (emailError(email) == null) viewModel.requestPasswordReset()
+                    if (emailError(email) == null) viewModel.requestPasswordReset(email)
                 }
             )
         }
@@ -648,17 +656,6 @@ private fun GuestEntry(onClick: () -> Unit) {
             )
         }
     }
-}
-
-@Composable
-private fun AuthError(message: String) {
-    Text(
-        text = message,
-        modifier = Modifier.fillMaxWidth().clip(AuthShape).background(AuthErrorBackground).padding(10.dp),
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
-        color = MaterialTheme.colorScheme.error
-    )
 }
 
 @Composable

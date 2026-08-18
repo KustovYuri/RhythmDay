@@ -221,7 +221,6 @@ private fun CreateEntryScreen(
                 SaveSection(
                     enabled = state.canSave,
                     isSaving = state.isSaving,
-                    errorMessage = state.errorMessage,
                     onSave = onSave,
                     modifier = Modifier.padding(top = 12.dp)
                 )
@@ -797,12 +796,15 @@ private fun MultilineInput(
 private fun SaveSection(
     enabled: Boolean,
     isSaving: Boolean,
-    errorMessage: String?,
     onSave: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val background = if (enabled) RhythmDayPalette.Teal else ControlBackground
-    val contentColor = if (enabled) Color.White else RhythmDayPalette.Muted
+    val background = when {
+        isSaving -> RhythmDayPalette.Teal.copy(alpha = 0.64f)
+        enabled -> RhythmDayPalette.Teal
+        else -> ControlBackground
+    }
+    val contentColor = if (enabled || isSaving) Color.White else RhythmDayPalette.Muted
 
     Column(modifier = modifier.fillMaxWidth()) {
         Box(
@@ -818,21 +820,21 @@ private fun SaveSection(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = if (isSaving) "Сохраняем" else "Сохранить",
-                fontSize = 14.sp,
-                lineHeight = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = contentColor
-            )
-        }
-        if (errorMessage != null) {
-            Text(
-                text = errorMessage,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(top = 8.dp)
-            )
+            if (isSaving) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(19.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(
+                    text = "Сохранить",
+                    fontSize = 14.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = contentColor
+                )
+            }
         }
     }
 }

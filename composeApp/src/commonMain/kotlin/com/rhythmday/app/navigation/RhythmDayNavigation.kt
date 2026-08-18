@@ -52,6 +52,7 @@ import com.rhythmday.app.core.designsystem.RhythmDayIcons
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
 import com.rhythmday.app.core.domain.model.DayEntry
 import com.rhythmday.app.core.domain.repository.DayEntryRepository
+import com.rhythmday.app.core.presentation.DiaryRefreshViewModel
 import com.rhythmday.app.feature.analytics.presentation.AnalyticsRoute as AnalyticsScreenRoute
 import com.rhythmday.app.feature.auth.domain.AuthSession
 import com.rhythmday.app.feature.auth.presentation.AuthFlow
@@ -176,6 +177,8 @@ private fun MainNavigation(
     val dayEntryRepository = koinInject<DayEntryRepository>()
     val entriesFlow = remember(dayEntryRepository) { dayEntryRepository.observeEntries() }
     val entries by entriesFlow.collectAsStateWithLifecycle(emptyList())
+    val refreshViewModel = koinViewModel<DiaryRefreshViewModel>(key = "diary-refresh")
+    val isRefreshing by refreshViewModel.isRefreshing.collectAsStateWithLifecycle()
     var navigationDirection by remember { mutableStateOf(1) }
     var pendingTopLevelRoute by remember { mutableStateOf<AppRoute?>(null) }
     var topLevelNavigationJob by remember { mutableStateOf<Job?>(null) }
@@ -337,6 +340,8 @@ private fun MainNavigation(
                     HomeRoute(
                         viewModel = koinViewModel(),
                         contentPadding = contentPadding,
+                        isRefreshing = isRefreshing,
+                        onRefresh = refreshViewModel::refresh,
                         onCreateEntry = { openCreateEntry() },
                         onStartBlitz = { openBlitz() },
                         onEditEntry = { entryId -> open(EditEntryRoute(entryId)) },
@@ -350,6 +355,8 @@ private fun MainNavigation(
                     HistoryScreenRoute(
                         viewModel = koinViewModel(),
                         contentPadding = contentPadding,
+                        isRefreshing = isRefreshing,
+                        onRefresh = refreshViewModel::refresh,
                         onOpenEntry = { entryId -> open(EntryDetailsRoute(entryId)) }
                     )
                 }
@@ -375,6 +382,8 @@ private fun MainNavigation(
                     AnalyticsScreenRoute(
                         viewModel = koinViewModel(),
                         contentPadding = contentPadding,
+                        isRefreshing = isRefreshing,
+                        onRefresh = refreshViewModel::refresh,
                         onOpenEntry = { entryId -> open(EntryDetailsRoute(entryId)) }
                     )
                 }
@@ -430,6 +439,8 @@ private fun MainNavigation(
                             parameters = { parametersOf(route.entryId) }
                         ),
                         contentPadding = contentPadding,
+                        isRefreshing = isRefreshing,
+                        onRefresh = refreshViewModel::refresh,
                         onBack = ::navigateBack,
                         onEdit = { open(EditEntryRoute(route.entryId)) }
                     )

@@ -9,15 +9,15 @@ class AuthValidationTest {
     fun acceptsValidFormValues() {
         assertNull(nameError("Мария"))
         assertNull(emailError("maria@example.com"))
-        assertNull(passwordError("rhythm2026"))
-        assertNull(confirmationError("rhythm2026", "rhythm2026"))
+        assertNull(passwordError("rhythmday2026"))
+        assertNull(confirmationError("rhythmday2026", "rhythmday2026"))
     }
 
     @Test
     fun rejectsInvalidEmailAndWeakPassword() {
         assertEquals("Проверьте формат email", emailError("maria@"))
-        assertEquals("Минимум 8 символов", passwordError("day1"))
-        assertEquals("Добавьте буквы и цифры", passwordError("rhythmday"))
-        assertEquals("Пароли не совпадают", confirmationError("rhythm2026", "rhythm2025"))
+        assertEquals("Минимум 12 символов", passwordError("day1"))
+        assertEquals("Добавьте буквы и цифры", passwordError("rhythmdaylong"))
+        assertEquals("Пароли не совпадают", confirmationError("rhythmday2026", "rhythmday2025"))
     }
 }

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rhythmday.app.core.domain.model.DayEntry
 import com.rhythmday.app.core.domain.repository.DayEntryRepository
+import com.rhythmday.app.core.presentation.UserMessageManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -32,7 +33,8 @@ class HistoryViewModel(
     repository: DayEntryRepository,
     currentDate: () -> LocalDate = {
         Clock.System.todayIn(TimeZone.currentSystemDefault())
-    }
+    },
+    messages: UserMessageManager = UserMessageManager()
 ) : ViewModel() {
     private val currentMonth = currentDate().firstDayOfMonth()
     private val selectedMonth = MutableStateFlow(currentMonth)
@@ -52,7 +54,8 @@ class HistoryViewModel(
                 canShowNextMonth = month < currentMonth
             )
         }
-        .catch {
+        .catch { error ->
+            messages.showError(error, "Не удалось загрузить историю")
             emit(
                 HistoryUiState(
                     isLoading = false,

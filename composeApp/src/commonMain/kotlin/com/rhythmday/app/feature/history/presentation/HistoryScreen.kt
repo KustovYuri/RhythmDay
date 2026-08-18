@@ -40,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
 import com.rhythmday.app.core.designsystem.scoreColors
 import com.rhythmday.app.core.domain.model.DayEntry
+import com.rhythmday.app.core.presentation.RefreshableContent
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -58,17 +59,25 @@ private val DisabledNavigationButtonBackground = Color(0xFFF3F6F7)
 fun HistoryRoute(
     viewModel: HistoryViewModel,
     contentPadding: PaddingValues,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     onOpenEntry: (Long) -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    HistoryScreen(
-        state = state,
-        contentPadding = contentPadding,
-        onPreviousMonth = viewModel::showPreviousMonth,
-        onNextMonth = viewModel::showNextMonth,
-        onOpenEntry = onOpenEntry
-    )
+    RefreshableContent(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        HistoryScreen(
+            state = state,
+            contentPadding = contentPadding,
+            onPreviousMonth = viewModel::showPreviousMonth,
+            onNextMonth = viewModel::showNextMonth,
+            onOpenEntry = onOpenEntry
+        )
+    }
 }
 
 @Composable

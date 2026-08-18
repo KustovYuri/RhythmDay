@@ -2,6 +2,7 @@ package com.rhythmday.app.feature.home.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rhythmday.app.core.presentation.UserMessageManager
 import com.rhythmday.app.feature.home.domain.HomeDashboard
 import com.rhythmday.app.feature.home.domain.usecase.ObserveHomeDashboardUseCase
 import kotlinx.coroutines.flow.SharingStarted
@@ -17,13 +18,15 @@ data class HomeUiState(
 )
 
 class HomeViewModel(
-    observeHomeDashboardUseCase: ObserveHomeDashboardUseCase
+    observeHomeDashboardUseCase: ObserveHomeDashboardUseCase,
+    messages: UserMessageManager
 ) : ViewModel() {
     val uiState: StateFlow<HomeUiState> = observeHomeDashboardUseCase()
         .map { dashboard ->
             HomeUiState(isLoading = false, dashboard = dashboard)
         }
-        .catch {
+        .catch { error ->
+            messages.showError(error, "Не удалось загрузить данные дня")
             emit(
                 HomeUiState(
                     isLoading = false,

@@ -216,9 +216,6 @@ fun ChangeEmailRoute(
                     else -> emailError(email)
                 }
             )
-            operation.errorMessage?.let { message ->
-                Text(message, color = MaterialTheme.colorScheme.error)
-            }
             PrimaryAuthButton(
                 text = "Сохранить email",
                 isBusy = operation.isBusy,
@@ -261,7 +258,7 @@ fun ChangePasswordRoute(
             )
         } else {
             Text(
-                text = "Используйте не менее 8 символов, добавьте буквы и цифры.",
+                text = "Используйте не менее 12 символов, добавьте буквы и цифры.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = RhythmDayPalette.Muted
             )
@@ -305,7 +302,9 @@ fun ChangePasswordRoute(
                         passwordError(newPassword) == null &&
                         newPassword != currentPassword &&
                         confirmationError(newPassword, confirmation) == null
-                    if (valid) viewModel.changePassword()
+                    if (valid) {
+                        viewModel.changePassword(currentPassword, newPassword, confirmation)
+                    }
                 }
             )
         }

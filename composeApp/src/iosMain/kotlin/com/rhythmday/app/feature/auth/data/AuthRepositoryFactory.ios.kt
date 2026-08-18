@@ -1,11 +1,12 @@
 package com.rhythmday.app.feature.auth.data
 
-import com.rhythmday.app.feature.auth.domain.AuthRepository
+import com.rhythmday.app.data.remote.BackendDependencies
+import com.rhythmday.app.data.remote.createBackendDependencies
 import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSUserDomainMask
 
-fun createAuthRepository(): AuthRepository {
+fun createPlatformBackendDependencies(apiBaseUrl: String = ""): BackendDependencies {
     val documentDirectory = NSFileManager.defaultManager.URLForDirectory(
         directory = NSDocumentDirectory,
         inDomain = NSUserDomainMask,
@@ -14,5 +15,5 @@ fun createAuthRepository(): AuthRepository {
         error = null
     )
     val filePath = requireNotNull(documentDirectory?.path) + "/$AUTH_PREFERENCES_FILE_NAME"
-    return DataStoreAuthRepository(createAuthDataStore(filePath))
+    return createBackendDependencies(createAuthDataStore(filePath), apiBaseUrl)
 }

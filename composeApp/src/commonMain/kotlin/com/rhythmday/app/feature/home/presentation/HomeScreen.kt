@@ -45,6 +45,7 @@ import com.rhythmday.app.core.designsystem.RhythmDayIcons
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
 import com.rhythmday.app.core.designsystem.scoreAccentColor
 import com.rhythmday.app.core.domain.model.DayEntry
+import com.rhythmday.app.core.presentation.RefreshableContent
 import com.rhythmday.app.feature.home.domain.HomeDashboard
 import com.rhythmday.app.feature.home.domain.WeekSummary
 import kotlinx.datetime.DayOfWeek
@@ -64,6 +65,8 @@ private val TagBackground = Color(0xFFCBE8E3)
 fun HomeRoute(
     viewModel: HomeViewModel,
     contentPadding: PaddingValues,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     onCreateEntry: () -> Unit,
     onStartBlitz: () -> Unit,
     onEditEntry: (Long) -> Unit,
@@ -75,35 +78,41 @@ fun HomeRoute(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val dashboard = state.dashboard
 
-    when {
-        state.isLoading -> Box(
-            modifier = Modifier.fillMaxSize().padding(contentPadding),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator(color = RhythmDayPalette.Teal)
-        }
+    RefreshableContent(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        when {
+            state.isLoading -> Box(
+                modifier = Modifier.fillMaxSize().padding(contentPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = RhythmDayPalette.Teal)
+            }
 
-        dashboard != null -> HomeScreen(
-            dashboard = dashboard,
-            contentPadding = contentPadding,
-            onCreateEntry = onCreateEntry,
-            onEditEntry = onEditEntry,
-            onStartBlitz = onStartBlitz,
-            onOpenHistory = onOpenHistory,
-            onOpenAnalytics = onOpenAnalytics,
-            onOpenProfile = onOpenProfile,
-            onOpenEntry = onOpenEntry
-        )
-
-        else -> Box(
-            modifier = Modifier.fillMaxSize().padding(contentPadding).padding(24.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = state.errorMessage.orEmpty(),
-                color = MaterialTheme.colorScheme.error,
-                textAlign = TextAlign.Center
+            dashboard != null -> HomeScreen(
+                dashboard = dashboard,
+                contentPadding = contentPadding,
+                onCreateEntry = onCreateEntry,
+                onEditEntry = onEditEntry,
+                onStartBlitz = onStartBlitz,
+                onOpenHistory = onOpenHistory,
+                onOpenAnalytics = onOpenAnalytics,
+                onOpenProfile = onOpenProfile,
+                onOpenEntry = onOpenEntry
             )
+
+            else -> Box(
+                modifier = Modifier.fillMaxSize().padding(contentPadding).padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = state.errorMessage.orEmpty(),
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }
