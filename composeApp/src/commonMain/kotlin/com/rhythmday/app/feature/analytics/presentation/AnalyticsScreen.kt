@@ -48,8 +48,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -81,7 +79,6 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
-import kotlinx.coroutines.flow.first
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -497,6 +494,8 @@ private fun ChartPanel(
 
         LineChart(
             entries = state.entries,
+            rangeStart = state.rangeStart,
+            rangeEnd = state.rangeEnd,
             selectedMetrics = selectedMetrics,
             onOpenEntry = onOpenEntry,
             modifier = Modifier.padding(top = 10.dp)
@@ -532,12 +531,18 @@ private fun RangeSummaryCard(range: String) {
 @Composable
 private fun LineChart(
     entries: List<DayEntry>,
+    rangeStart: LocalDate,
+    rangeEnd: LocalDate,
     selectedMetrics: List<AnalyticsMetric>,
     onOpenEntry: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
     val chartStateKey = buildString {
+        append(rangeStart)
+        append(':')
+        append(rangeEnd)
+        append(':')
         append(entries.firstOrNull()?.id)
         append(':')
         append(entries.lastOrNull()?.id)
@@ -550,143 +555,127 @@ private fun LineChart(
         .flatMap { entry -> selectedMetrics.map { metric -> metric.value(entry) } }
         .average()
         .coerceIn(0.0, 10.0)
-    var zoom by rememberSaveable(chartStateKey) {
-        mutableFloatStateOf(MinimumChartZoom)
-    }
-    var verticalCenter by rememberSaveable(chartStateKey) {
-        mutableDoubleStateOf(initialVerticalCenter)
-    }
-    var latestPositionApplied by rememberSaveable(chartStateKey) {
-        mutableStateOf(false)
-    }
-    val verticalScale = chartVerticalScale(zoom)
-    val displayedCenter = constrainedVerticalCenter(verticalCenter, verticalScale.visibleRange)
-    val minimumVisibleValue = displayedCenter - verticalScale.visibleRange / 2.0
-    val maximumVisibleValue = displayedCenter + verticalScale.visibleRange / 2.0
+    BoxWithConstraints(modifier = modifier.fillMaxWidth().height(ChartHeight)) {
+        val viewportWidth = (maxWidth - ChartAxisWidth).coerceAtLeast(1.dp)
+        val baseChartWidth = max(viewportWidth.value, entries.size * ChartPointSpacing)
+        val minimumChartZoom = viewportWidth.value / baseChartWidth
+        var zoom by remember(chartStateKey, viewportWidth.value) {
+            mutableFloatStateOf(minimumChartZoom)
+        }
+        var verticalCenter by remember(chartStateKey) {
+            mutableDoubleStateOf(initialVerticalCenter)
+        }
+        val verticalScale = chartVerticalScale(zoom)
+        val displayedCenter = constrainedVerticalCenter(verticalCenter, verticalScale.visibleRange)
+        val minimumVisibleValue = displayedCenter - verticalScale.visibleRange / 2.0
+        val maximumVisibleValue = displayedCenter + verticalScale.visibleRange / 2.0
 
-    Row(
-        modifier = modifier.fillMaxWidth().height(ChartHeight),
-        verticalAlignment = Alignment.Top
-    ) {
-        ChartYAxis(
-            minimumValue = minimumVisibleValue,
-            maximumValue = maximumVisibleValue,
-            modifier = Modifier.width(ChartAxisWidth).height(ChartHeight)
-        )
-        BoxWithConstraints(
-            modifier = Modifier.weight(1f).height(ChartHeight)
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.Top
         ) {
-            val scrollState = rememberSaveable(chartStateKey, saver = ScrollState.Saver) {
-                ScrollState(initial = 0)
-            }
-            val chartPlotHeightPx = with(density) {
-                (ChartHeight - ChartTopPadding - ChartBottomPadding).toPx()
-            }
-            val chartTopPaddingPx = with(density) { ChartTopPadding.toPx() }
-            val chartHorizontalPaddingPx = with(density) { ChartHorizontalPadding.toPx() }
-            val viewportWidthPx = with(density) { maxWidth.toPx() }
-            val baseChartWidth = max(maxWidth.value, entries.size * ChartPointSpacing)
-            val baseChartWidthPx = with(density) { baseChartWidth.dp.toPx() }
-            val chartWidth = (baseChartWidth * zoom).dp
-            val hasInitialOverflow = baseChartWidth > maxWidth.value
-            var pendingHorizontalOffset by remember(chartStateKey) {
-                mutableFloatStateOf(Float.NaN)
-            }
-            val transformableState = rememberTransformableState { centroid, zoomChange, panChange, _ ->
-                val previousZoom = zoom
-                val previousScale = chartVerticalScale(previousZoom)
-                val nextZoom = (previousZoom * zoomChange)
-                    .coerceIn(MinimumChartZoom, MaximumChartZoom)
-                val nextScale = chartVerticalScale(nextZoom)
-                val previousChartWidthPx = baseChartWidthPx * previousZoom
-                val nextChartWidthPx = baseChartWidthPx * nextZoom
-                val currentHorizontalOffset = pendingHorizontalOffset
-                    .takeUnless(Float::isNaN)
-                    ?: scrollState.value.toFloat()
-                var nextHorizontalOffset = currentHorizontalOffset
-                if (abs(nextZoom - previousZoom) > 0.0001f) {
-                    nextHorizontalOffset = anchoredHorizontalOffset(
-                        currentOffset = currentHorizontalOffset,
-                        centroidX = centroid.x,
-                        previousContentWidth = previousChartWidthPx,
-                        nextContentWidth = nextChartWidthPx,
-                        horizontalPadding = chartHorizontalPaddingPx
-                    )
+            ChartYAxis(
+                minimumValue = minimumVisibleValue,
+                maximumValue = maximumVisibleValue,
+                modifier = Modifier.width(ChartAxisWidth).height(ChartHeight)
+            )
+            Box(modifier = Modifier.weight(1f).height(ChartHeight)) {
+                val scrollState = remember(chartStateKey, viewportWidth.value) {
+                    ScrollState(initial = 0)
                 }
-                nextHorizontalOffset = (nextHorizontalOffset - panChange.x).coerceIn(
-                    minimumValue = 0f,
-                    maximumValue = (nextChartWidthPx - viewportWidthPx).coerceAtLeast(0f)
-                )
-                pendingHorizontalOffset = nextHorizontalOffset
-                scrollState.dispatchRawDelta(nextHorizontalOffset - scrollState.value)
-
-                val previousCenter = constrainedVerticalCenter(
-                    center = verticalCenter,
-                    visibleRange = previousScale.visibleRange
-                )
-                val verticalAnchorFraction = (
-                    (centroid.y - chartTopPaddingPx) / chartPlotHeightPx
-                    ).coerceIn(0f, 1f)
-                val anchorValue = previousCenter + previousScale.visibleRange / 2.0 -
-                    verticalAnchorFraction * previousScale.visibleRange
-                val anchoredCenter = anchorValue +
-                    (verticalAnchorFraction - 0.5f) * nextScale.visibleRange
-                verticalCenter = constrainedVerticalCenter(
-                    center = anchoredCenter +
-                        panChange.y / chartPlotHeightPx * nextScale.visibleRange,
-                    visibleRange = nextScale.visibleRange
-                )
-                zoom = nextZoom
-            }
-
-            LaunchedEffect(chartWidth, pendingHorizontalOffset) {
-                val targetOffset = pendingHorizontalOffset
-                if (!targetOffset.isNaN()) {
-                    withFrameNanos { }
-                    scrollState.dispatchRawDelta(
-                        targetOffset.coerceIn(0f, scrollState.maxValue.toFloat()) -
-                            scrollState.value
-                    )
-                    if (pendingHorizontalOffset == targetOffset) {
-                        pendingHorizontalOffset = Float.NaN
+                val chartPlotHeightPx = with(density) {
+                    (ChartHeight - ChartTopPadding - ChartBottomPadding).toPx()
+                }
+                val chartTopPaddingPx = with(density) { ChartTopPadding.toPx() }
+                val chartHorizontalPaddingPx = with(density) { ChartHorizontalPadding.toPx() }
+                val viewportWidthPx = with(density) { viewportWidth.toPx() }
+                val baseChartWidthPx = with(density) { baseChartWidth.dp.toPx() }
+                val chartWidth = (baseChartWidth * zoom).dp
+                var pendingHorizontalOffset by remember(chartStateKey, viewportWidth.value) {
+                    mutableFloatStateOf(Float.NaN)
+                }
+                val transformableState = rememberTransformableState { centroid, zoomChange, panChange, _ ->
+                    val previousZoom = zoom
+                    val previousScale = chartVerticalScale(previousZoom)
+                    val nextZoom = (previousZoom * zoomChange)
+                        .coerceIn(minimumChartZoom, MaximumChartZoom)
+                    val nextScale = chartVerticalScale(nextZoom)
+                    val previousChartWidthPx = baseChartWidthPx * previousZoom
+                    val nextChartWidthPx = baseChartWidthPx * nextZoom
+                    val currentHorizontalOffset = pendingHorizontalOffset
+                        .takeUnless(Float::isNaN)
+                        ?: scrollState.value.toFloat()
+                    var nextHorizontalOffset = currentHorizontalOffset
+                    if (abs(nextZoom - previousZoom) > 0.0001f) {
+                        nextHorizontalOffset = anchoredHorizontalOffset(
+                            currentOffset = currentHorizontalOffset,
+                            centroidX = centroid.x,
+                            previousContentWidth = previousChartWidthPx,
+                            nextContentWidth = nextChartWidthPx,
+                            horizontalPadding = chartHorizontalPaddingPx
+                        )
                     }
-                }
-            }
+                    nextHorizontalOffset = (nextHorizontalOffset - panChange.x).coerceIn(
+                        minimumValue = 0f,
+                        maximumValue = (nextChartWidthPx - viewportWidthPx).coerceAtLeast(0f)
+                    )
+                    pendingHorizontalOffset = nextHorizontalOffset
+                    scrollState.dispatchRawDelta(nextHorizontalOffset - scrollState.value)
 
-            LaunchedEffect(
-                chartStateKey,
-                hasInitialOverflow,
-                latestPositionApplied
-            ) {
-                if (!latestPositionApplied) {
-                    if (hasInitialOverflow) {
-                        snapshotFlow { scrollState.maxValue }.first { maximum -> maximum > 0 }
-                        scrollState.scrollTo(scrollState.maxValue)
-                    }
-                    latestPositionApplied = true
+                    val previousCenter = constrainedVerticalCenter(
+                        center = verticalCenter,
+                        visibleRange = previousScale.visibleRange
+                    )
+                    val verticalAnchorFraction = (
+                        (centroid.y - chartTopPaddingPx) / chartPlotHeightPx
+                        ).coerceIn(0f, 1f)
+                    val anchorValue = previousCenter + previousScale.visibleRange / 2.0 -
+                        verticalAnchorFraction * previousScale.visibleRange
+                    val anchoredCenter = anchorValue +
+                        (verticalAnchorFraction - 0.5f) * nextScale.visibleRange
+                    verticalCenter = constrainedVerticalCenter(
+                        center = anchoredCenter +
+                            panChange.y / chartPlotHeightPx * nextScale.visibleRange,
+                        visibleRange = nextScale.visibleRange
+                    )
+                    zoom = nextZoom
                 }
-            }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .transformable(
-                        state = transformableState,
-                        canPan = { pan ->
-                            zoom > MinimumChartZoom ||
-                                scrollState.maxValue > 0 && abs(pan.x) > abs(pan.y)
+                LaunchedEffect(chartWidth, pendingHorizontalOffset) {
+                    val targetOffset = pendingHorizontalOffset
+                    if (!targetOffset.isNaN()) {
+                        withFrameNanos { }
+                        scrollState.dispatchRawDelta(
+                            targetOffset.coerceIn(0f, scrollState.maxValue.toFloat()) -
+                                scrollState.value
+                        )
+                        if (pendingHorizontalOffset == targetOffset) {
+                            pendingHorizontalOffset = Float.NaN
                         }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .transformable(
+                            state = transformableState,
+                            canPan = { pan ->
+                                zoom > minimumChartZoom ||
+                                    scrollState.maxValue > 0 && abs(pan.x) > abs(pan.y)
+                            }
+                        )
+                        .horizontalScroll(scrollState, enabled = false)
+                ) {
+                    MetricChartCanvas(
+                        entries = entries,
+                        selectedMetrics = selectedMetrics,
+                        minimumValue = minimumVisibleValue,
+                        maximumValue = maximumVisibleValue,
+                        onOpenEntry = onOpenEntry,
+                        modifier = Modifier.width(chartWidth).height(ChartHeight)
                     )
-                    .horizontalScroll(scrollState, enabled = false)
-            ) {
-                MetricChartCanvas(
-                    entries = entries,
-                    selectedMetrics = selectedMetrics,
-                    minimumValue = minimumVisibleValue,
-                    maximumValue = maximumVisibleValue,
-                    onOpenEntry = onOpenEntry,
-                    modifier = Modifier.width(chartWidth).height(ChartHeight)
-                )
+                }
             }
         }
     }
@@ -803,6 +792,7 @@ private fun MetricChartCanvas(
         val bottom = ChartBottomPadding.toPx()
         val plotWidth = size.width - left - right
         val plotHeight = size.height - top - bottom
+        val pointSpacing = plotWidth / (entries.size - 1).coerceAtLeast(1)
         val pixelsPerValue = plotHeight / (maximumValue - minimumValue).toFloat()
 
         chartTicks(
@@ -861,6 +851,7 @@ private fun MetricChartCanvas(
         selectedMetrics.forEach { metric ->
             val points = metricPoints.getValue(metric)
             entries.forEachIndexed { index, entry ->
+                if (pointSpacing < 12.dp.toPx()) return@forEachIndexed
                 val point = points[index]
                 if (point.y in top..(top + plotHeight)) {
                     drawCircle(
@@ -877,7 +868,13 @@ private fun MetricChartCanvas(
             }
         }
 
+        val labelStep = ceil(48.dp.toPx() / pointSpacing.coerceAtLeast(1f))
+            .toInt()
+            .coerceAtLeast(1)
         entries.forEachIndexed { index, entry ->
+            if (index != 0 && index != entries.lastIndex &&
+                (index % labelStep != 0 || entries.lastIndex - index < labelStep)
+            ) return@forEachIndexed
             val point = chartPoint(
                 index = index,
                 count = entries.size,
