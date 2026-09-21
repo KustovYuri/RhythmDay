@@ -1,6 +1,5 @@
 package com.rhythmday.app.feature.home.presentation
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,12 +10,14 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -62,8 +64,8 @@ import kotlin.time.Instant
 
 private val CardShape = RoundedCornerShape(8.dp)
 private val ControlBackground = Color(0xFFEDF3F5)
-private val FieldBackground = Color(0xFFF0F4F7)
-private val TagBackground = Color(0xFFCBE8E3)
+private val TagBackground = Color(0xFFE9F4F2)
+private val ProgressTrack = Color(0xFFDFEBE9)
 
 @Composable
 fun HomeRoute(
@@ -177,7 +179,10 @@ private fun HomeHeader(
     ) {
         Text(
             text = date.asFullDate(),
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineSmall.copy(
+                fontSize = 23.sp,
+                lineHeight = 26.sp
+            ),
             color = RhythmDayPalette.Ink,
             modifier = Modifier.weight(1f)
         )
@@ -472,9 +477,11 @@ private fun WeekCard(
     onOpenAnalytics: () -> Unit
 ) {
     PrototypeCard {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, top = 5.dp, end = 5.dp, bottom = 5.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -489,18 +496,25 @@ private fun WeekCard(
                     onClick = onOpenAnalytics,
                     size = 34.dp,
                     iconSize = 18.dp,
-                    tint = RhythmDayPalette.TealDark,
-                    background = ControlBackground
+                    filled = true
                 )
             }
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                color = RhythmDayPalette.Line,
+                thickness = 1.dp
+            )
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 WeekStat(
                     top = "заполнено",
                     value = "${summary.completedDays}/7",
                     bottom = "дней",
+                    progress = summary.completedDays.coerceIn(0, 7) / 7f,
                     modifier = Modifier.weight(1f)
                 )
                 WeekStat(
@@ -525,15 +539,14 @@ private fun WeekStat(
     top: String,
     value: String,
     bottom: String,
+    progress: Float? = null,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier
-            .heightIn(min = 86.dp)
-            .clip(CardShape)
-            .background(FieldBackground)
-            .padding(10.dp),
-        horizontalAlignment = Alignment.Start
+            .padding(horizontal = 2.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Text(
             text = top,
@@ -541,15 +554,18 @@ private fun WeekStat(
             lineHeight = 14.sp,
             fontWeight = FontWeight.Bold,
             color = RhythmDayPalette.Muted,
-            maxLines = 1
+            maxLines = 1,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
         )
         Text(
             text = value,
             fontSize = 21.sp,
             lineHeight = 24.sp,
             fontWeight = FontWeight.Black,
-            color = RhythmDayPalette.Ink,
-            modifier = Modifier.padding(top = 6.dp)
+            color = Color(0xFF174E51),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
         )
         Text(
             text = bottom,
@@ -558,8 +574,26 @@ private fun WeekStat(
             fontWeight = FontWeight.Bold,
             color = RhythmDayPalette.Muted,
             maxLines = 1,
-            modifier = Modifier.padding(top = 6.dp)
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
         )
+        if (progress != null) {
+            Box(
+                modifier = Modifier
+                    .padding(top = 3.dp)
+                    .width(58.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(ProgressTrack)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(progress.coerceIn(0f, 1f))
+                        .fillMaxHeight()
+                        .background(RhythmDayPalette.Teal)
+                )
+            }
+        }
     }
 }
 
@@ -570,14 +604,27 @@ private fun PreviousEntryCard(
     onClick: () -> Unit
 ) {
     PrototypeCard(onClick = onClick) {
-        Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
-            Text(
-                text = "Предыдущая запись",
-                style = MaterialTheme.typography.titleLarge,
-                color = RhythmDayPalette.Ink
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 11.dp)
+            ) {
+                Text(
+                    text = "Предыдущая запись",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = RhythmDayPalette.Ink
+                )
+            }
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 14.dp),
+                color = RhythmDayPalette.Line,
+                thickness = 1.dp
             )
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 14.dp, top = 14.dp, end = 14.dp, bottom = 14.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.Top
             ) {
@@ -608,23 +655,23 @@ private fun PreviousEntryCard(
                         modifier = Modifier.padding(top = if (entry.title == null) 2.dp else 4.dp)
                     )
                     FlowRow(
-                        modifier = Modifier.padding(top = 10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        modifier = Modifier.padding(top = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
                         entry.tags.forEach { tag ->
                             Box(
                                 modifier = Modifier
-                                    .heightIn(min = 26.dp)
+                                    .heightIn(min = 22.dp)
                                     .clip(CardShape)
                                     .background(TagBackground)
-                                    .padding(horizontal = 8.dp),
+                                    .padding(horizontal = 7.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = tag,
-                                    fontSize = 12.sp,
-                                    lineHeight = 15.sp,
+                                    fontSize = 11.sp,
+                                    lineHeight = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = RhythmDayPalette.TealDark
                                 )
@@ -667,7 +714,6 @@ private fun PrototypeCard(
         modifier = Modifier.fillMaxWidth().then(clickModifier),
         shape = CardShape,
         color = RhythmDayPalette.Panel,
-        border = BorderStroke(1.dp, RhythmDayPalette.Line),
         content = content
     )
 }
