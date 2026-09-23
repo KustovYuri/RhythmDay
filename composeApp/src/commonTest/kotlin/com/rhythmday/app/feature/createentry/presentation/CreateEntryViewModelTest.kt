@@ -4,6 +4,7 @@ import com.rhythmday.app.core.domain.model.DayEntry
 import com.rhythmday.app.core.domain.model.DayMetrics
 import com.rhythmday.app.core.domain.model.DAY_TITLE_MAX_LENGTH
 import com.rhythmday.app.core.domain.repository.DayEntryRepository
+import com.rhythmday.app.core.domain.repository.DayPhotoRepository
 import com.rhythmday.app.core.domain.repository.DayTagRepository
 import com.rhythmday.app.core.domain.usecase.DayScoreCalculatorUseCase
 import com.rhythmday.app.core.domain.usecase.ObserveDayEntryUseCase
@@ -22,6 +23,7 @@ import kotlinx.coroutines.test.setMain
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertContentEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -92,6 +94,30 @@ class CreateEntryViewModelTest {
     }
 
     @Test
+    fun pickedPhotosCanBeRemovedBeforeSaving() {
+        val viewModel = createViewModel(RecordingDayEntryRepository())
+        val firstPhoto = byteArrayOf(1, 2, 3)
+        val secondPhoto = byteArrayOf(4, 5, 6)
+
+        viewModel.onPhotosPicked(listOf(firstPhoto, secondPhoto))
+        viewModel.onPhotoRemoved(0)
+
+        assertEquals(1, viewModel.uiState.value.photos.size)
+        assertContentEquals(secondPhoto, viewModel.uiState.value.photos.single())
+    }
+
+    @Test
+    fun photoSelectionIsLimitedToTenPhotos() {
+        val viewModel = createViewModel(RecordingDayEntryRepository())
+        val photos = List(12) { index -> byteArrayOf(index.toByte()) }
+
+        viewModel.onPhotosPicked(photos)
+
+        assertEquals(10, viewModel.uiState.value.photos.size)
+        assertEquals("Можно добавить не больше 10 фотографий", viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
     fun deletingTagRemovesItFromDatabaseAndSelectedTags() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
@@ -130,7 +156,9 @@ class CreateEntryViewModelTest {
                 note = "Исходный комментарий"
             )
             val repository = RecordingDayEntryRepository(listOf(originalEntry))
-            val viewModel = createViewModel(repository)
+            val originalPhotos = listOf(byteArrayOf(1, 2, 3), byteArrayOf(4, 5, 6))
+            val photoRepository = RecordingDayPhotoRepository(originalEntry.id, originalPhotos)
+            val viewModel = createViewModel(repository, photoRepository = photoRepository)
 
             viewModel.prepareEntry(originalEntry.id)
             advanceUntilIdle()
@@ -141,6 +169,8 @@ class CreateEntryViewModelTest {
             assertEquals(originalEntry.metrics.sleepQuality, viewModel.uiState.value.sleepQuality)
             assertEquals(originalEntry.tags.toSet(), viewModel.uiState.value.selectedTags)
             assertEquals(originalEntry.note, viewModel.uiState.value.note)
+            assertContentEquals(originalPhotos[0], viewModel.uiState.value.photos[0])
+            assertContentEquals(originalPhotos[1], viewModel.uiState.value.photos[1])
 
             viewModel.onMetricChanged(CreateEntryMetric.ENERGY, 9.4)
             viewModel.onTitleChanged("Новый ритм")
@@ -154,6 +184,8 @@ class CreateEntryViewModelTest {
             assertEquals("Новый ритм", updatedEntry.title)
             assertEquals(9.4, updatedEntry.metrics.energy)
             assertEquals("Обновленный комментарий", updatedEntry.note)
+            assertContentEquals(originalPhotos[0], photoRepository.photos.value[0])
+            assertContentEquals(originalPhotos[1], photoRepository.photos.value[1])
         } finally {
             Dispatchers.resetMain()
         }
@@ -161,7 +193,8 @@ class CreateEntryViewModelTest {
 
     private fun createViewModel(
         repository: DayEntryRepository,
-        tagRepository: DayTagRepository = RecordingDayTagRepository()
+        tagRepository: DayTagRepository = RecordingDayTagRepository(),
+        photoRepository: DayPhotoRepository = RecordingDayPhotoRepository()
     ): CreateEntryViewModel =
         CreateEntryViewModel(
             saveDayEntryUseCase = SaveDayEntryUseCase(
@@ -170,8 +203,25 @@ class CreateEntryViewModelTest {
                 currentDate = { LocalDate(2026, 7, 20) }
             ),
             observeDayEntryUseCase = ObserveDayEntryUseCase(repository),
-            dayTagRepository = tagRepository
+            dayTagRepository = tagRepository,
+            dayPhotoRepository = photoRepository
         )
+}
+
+private class RecordingDayPhotoRepository(
+    initialEntryId: Long? = null,
+    initialPhotos: List<ByteArray> = emptyList()
+) : DayPhotoRepository {
+    private var entryId = initialEntryId
+    val photos = MutableStateFlow(initialPhotos)
+
+    override fun observePhotos(entryId: Long): Flow<List<ByteArray>> =
+        if (this.entryId == null || this.entryId == entryId) photos else MutableStateFlow(emptyList())
+
+    override suspend fun replacePhotos(entryId: Long, photos: List<ByteArray>) {
+        this.entryId = entryId
+        this.photos.value = photos
+    }
 }
 
 private class RecordingDayTagRepository(

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -43,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rhythmday.app.core.designsystem.GOOD_SCORE_THRESHOLD
 import com.rhythmday.app.core.designsystem.MEDIUM_SCORE_THRESHOLD
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
+import com.rhythmday.app.core.designsystem.PhotoGallery
 import com.rhythmday.app.core.designsystem.scoreAccentColor
 import com.rhythmday.app.core.domain.model.DayEntry
 import kotlinx.datetime.DayOfWeek
@@ -106,7 +108,12 @@ private fun EntryDetailsScreen(
             entry != null -> {
                 item { DayHero(entry = entry) }
                 item { MetricsCard(entry = entry) }
-                item { CommentCard(note = entry.note) }
+                if (state.photos.isNotEmpty()) {
+                    item { PhotosCard(photos = state.photos) }
+                }
+                entry.note?.takeIf(String::isNotBlank)?.let { note ->
+                    item { CommentCard(note = note) }
+                }
             }
 
             else -> item {
@@ -292,31 +299,54 @@ private fun MetricTile(
 ) {
     Column(
         modifier = modifier
-            .heightIn(min = 62.dp)
+            .height(72.dp)
             .clip(CardShape)
-            .background(DetailFieldBackground)
-            .padding(9.dp),
-        verticalArrangement = Arrangement.SpaceBetween
+            .background(Color(0xFFF3F8F9))
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Text(
-            text = item.value.asDisplayScore(),
-            fontSize = 19.sp,
-            lineHeight = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = RhythmDayPalette.Ink
-        )
         Text(
             text = item.label,
             fontSize = 11.sp,
             lineHeight = 13.sp,
             fontWeight = FontWeight.Bold,
-            color = RhythmDayPalette.Muted
+            color = RhythmDayPalette.Muted,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(3.dp))
+        Text(
+            text = item.value.asDisplayScore(),
+            fontSize = 25.sp,
+            lineHeight = 26.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF174E51),
+            textAlign = TextAlign.Center
         )
     }
 }
 
 @Composable
-private fun CommentCard(note: String?) {
+private fun PhotosCard(photos: List<ByteArray>) {
+    DetailCard {
+        Text(
+            text = "Фотографии дня",
+            fontSize = 18.sp,
+            lineHeight = 22.sp,
+            fontWeight = FontWeight.Bold,
+            color = RhythmDayPalette.Ink
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        PhotoGallery(
+            photos = photos,
+            thumbnailWidth = 184.dp,
+            thumbnailHeight = 184.dp
+        )
+    }
+}
+
+@Composable
+private fun CommentCard(note: String) {
     DetailCard {
         Text(
             text = "Комментарий",
@@ -334,10 +364,10 @@ private fun CommentCard(note: String?) {
                 .padding(12.dp)
         ) {
             Text(
-                text = note ?: "Комментарий не добавлен.",
+                text = note,
                 fontSize = 13.sp,
                 lineHeight = 19.sp,
-                color = if (note == null) RhythmDayPalette.Muted else RhythmDayPalette.Ink
+                color = RhythmDayPalette.Ink
             )
         }
     }

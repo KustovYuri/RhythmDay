@@ -1,6 +1,7 @@
 package com.rhythmday.app.di
 
 import com.rhythmday.app.core.domain.repository.DayEntryRepository
+import com.rhythmday.app.core.domain.repository.DayPhotoRepository
 import com.rhythmday.app.core.domain.repository.DayTagRepository
 import com.rhythmday.app.core.domain.usecase.DayScoreCalculatorUseCase
 import com.rhythmday.app.core.domain.usecase.ObserveDayEntryUseCase
@@ -8,6 +9,7 @@ import com.rhythmday.app.core.domain.usecase.SaveDayEntryUseCase
 import com.rhythmday.app.data.local.RhythmDayDatabase
 import com.rhythmday.app.data.repository.DemoDataSeeder
 import com.rhythmday.app.data.repository.RoomDayEntryRepository
+import com.rhythmday.app.data.repository.RoomDayPhotoRepository
 import com.rhythmday.app.data.repository.RoomDayTagRepository
 import com.rhythmday.app.feature.blitz.presentation.BlitzViewModel
 import com.rhythmday.app.feature.analytics.presentation.AnalyticsViewModel
@@ -41,19 +43,21 @@ fun appModule(
         )
     }
     single<DayTagRepository> { RoomDayTagRepository(get()) }
+    single<DayPhotoRepository> { RoomDayPhotoRepository(get()) }
     single { reminderSettingsRepository }
     single { dailyReminderScheduler }
     single { SaveDayEntryUseCase(get(), get()) }
     single { ObserveHomeDashboardUseCase(get()) }
     single { ObserveDayEntryUseCase(get()) }
     viewModel { BlitzViewModel(get(), get()) }
-    viewModel { CreateEntryViewModel(get(), get(), get()) }
+    viewModel { CreateEntryViewModel(get(), get(), get(), get()) }
     viewModel { AnalyticsViewModel(get()) }
     viewModel { HistoryViewModel(get()) }
     viewModel { parameters ->
         EntryDetailsViewModel(
             entryId = parameters.get(),
-            observeDayEntryUseCase = get()
+            observeDayEntryUseCase = get(),
+            dayPhotoRepository = get()
         )
     }
     viewModel { HomeViewModel(get()) }

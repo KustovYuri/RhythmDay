@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rhythmday.app.core.designsystem.RhythmDayPalette
+import com.rhythmday.app.core.designsystem.PhotoGallery
 import com.rhythmday.app.core.designsystem.scoreColors
 import com.rhythmday.app.core.domain.model.DAY_METRIC_MAX_VALUE
 import com.rhythmday.app.core.domain.model.DAY_METRIC_MIN_VALUE
@@ -106,6 +107,10 @@ fun CreateEntryRoute(
     val speechTextRequester = rememberSpeechTextRequester(
         onTextRecognized = viewModel::onSpeechTextRecognized
     )
+    val photoPicker = rememberPhotoPicker(
+        onPhotosPicked = viewModel::onPhotosPicked,
+        onError = viewModel::onPhotoImportFailed
+    )
 
     LaunchedEffect(viewModel, entryId) {
         viewModel.prepareEntry(entryId)
@@ -131,6 +136,8 @@ fun CreateEntryRoute(
         onCustomTagAdded = viewModel::onCustomTagAdded,
         onTitleChanged = viewModel::onTitleChanged,
         onNoteChanged = viewModel::onNoteChanged,
+        onPhotoRemoved = viewModel::onPhotoRemoved,
+        photoPicker = photoPicker,
         speechInputActive = speechTextRequester.isListening,
         speechAudioLevel = speechTextRequester.audioLevel,
         onSpeechInputToggle = speechTextRequester.toggle,
@@ -152,6 +159,8 @@ private fun CreateEntryScreen(
     onCustomTagAdded: (String) -> Unit,
     onTitleChanged: (String) -> Unit,
     onNoteChanged: (String) -> Unit,
+    onPhotoRemoved: (Int) -> Unit,
+    photoPicker: PhotoPicker,
     speechInputActive: Boolean,
     speechAudioLevel: Float,
     onSpeechInputToggle: () -> Unit,
@@ -159,6 +168,7 @@ private fun CreateEntryScreen(
 ) {
     var showCustomTagDialog by remember { mutableStateOf(false) }
     var showSpeechInputDialog by remember { mutableStateOf(false) }
+    var showPhotoSourceDialog by remember { mutableStateOf(false) }
     var tagPendingDeletion by remember { mutableStateOf<String?>(null) }
 
     LazyColumn(
@@ -217,6 +227,16 @@ private fun CreateEntryScreen(
                     onSpeechInputClick = { showSpeechInputDialog = true }
                 )
             }
+            if (photoPicker.isAvailable || state.photos.isNotEmpty()) {
+                item {
+                    PhotosCard(
+                        photos = state.photos,
+                        onAddPhotos = { showPhotoSourceDialog = true },
+                        onPhotoRemoved = onPhotoRemoved,
+                        showAddButton = photoPicker.isAvailable
+                    )
+                }
+            }
             item {
                 SaveSection(
                     enabled = state.canSave,
@@ -262,6 +282,13 @@ private fun CreateEntryScreen(
             onStart = onSpeechInputToggle,
             onStop = dismissSpeechInput,
             onDismiss = dismissSpeechInput
+        )
+    }
+
+    if (showPhotoSourceDialog) {
+        PhotoSourceDialog(
+            photoPicker = photoPicker,
+            onDismiss = { showPhotoSourceDialog = false }
         )
     }
 }
@@ -592,6 +619,134 @@ private fun DescriptionCard(
                 modifier = Modifier.padding(top = 12.dp)
             )
         }
+    }
+}
+
+@Composable
+private fun PhotosCard(
+    photos: List<ByteArray>,
+    onAddPhotos: () -> Unit,
+    onPhotoRemoved: (Int) -> Unit,
+    showAddButton: Boolean
+) {
+    PrototypeCard {
+        Column(modifier = Modifier.padding(14.dp)) {
+            CardHeader(
+                title = "Фотографии дня",
+                action = {
+                    if (showAddButton) {
+                        CompactIconButton(
+                            icon = Icons.Filled.Add,
+                            contentDescription = "Добавить фотографию",
+                            onClick = onAddPhotos,
+                            tint = Color.White,
+                            background = RhythmDayPalette.Teal
+                        )
+                    }
+                }
+            )
+            if (photos.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .heightIn(min = 86.dp)
+                        .clip(CardShape)
+                        .background(Color(0xFFF1F8F7))
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Добавьте фотографии, чтобы сохранить моменты этого дня",
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        color = RhythmDayPalette.Muted,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                Box(modifier = Modifier.padding(top = 12.dp)) {
+                    PhotoGallery(
+                        photos = photos,
+                        thumbnailWidth = 106.dp,
+                        thumbnailHeight = 106.dp,
+                        onRemove = onPhotoRemoved
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PhotoSourceDialog(
+    photoPicker: PhotoPicker,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(0.9f).widthIn(max = 318.dp),
+            shape = CardShape,
+            color = RhythmDayPalette.Panel
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Добавить фотографию",
+                    modifier = Modifier.padding(bottom = 6.dp),
+                    fontSize = 18.sp,
+                    lineHeight = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = RhythmDayPalette.Ink
+                )
+                if (photoPicker.canSelectFromGallery) {
+                    PhotoSourceOption(
+                        text = "Выбрать из галереи",
+                        onClick = {
+                            onDismiss()
+                            photoPicker.launchGallery()
+                        }
+                    )
+                }
+                if (photoPicker.canTakePhoto) {
+                    PhotoSourceOption(
+                        text = "Сделать фото",
+                        onClick = {
+                            onDismiss()
+                            photoPicker.launchCamera()
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PhotoSourceOption(
+    text: String,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clip(CardShape)
+            .background(ControlBackground)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = RhythmDayPalette.Ink,
+            textAlign = TextAlign.Center
+        )
     }
 }
 

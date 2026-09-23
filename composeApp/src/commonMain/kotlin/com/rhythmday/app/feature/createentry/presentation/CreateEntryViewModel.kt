@@ -8,6 +8,7 @@ import com.rhythmday.app.core.domain.model.DAY_METRIC_MAX_VALUE
 import com.rhythmday.app.core.domain.model.DAY_METRIC_MIN_VALUE
 import com.rhythmday.app.core.domain.model.DAY_TITLE_MAX_LENGTH
 import com.rhythmday.app.core.domain.repository.DayTagRepository
+import com.rhythmday.app.core.domain.repository.DayPhotoRepository
 import com.rhythmday.app.core.domain.usecase.ObserveDayEntryUseCase
 import com.rhythmday.app.core.domain.usecase.SaveDayEntryUseCase
 import kotlinx.coroutines.CancellationException
@@ -38,6 +39,7 @@ data class CreateEntryUiState(
     val tagsExpanded: Boolean = false,
     val title: String = "",
     val note: String = "",
+    val photos: List<ByteArray> = emptyList(),
     val isSaving: Boolean = false,
     val isSaved: Boolean = false,
     val errorMessage: String? = null
@@ -67,7 +69,8 @@ enum class CreateEntryMetric {
 class CreateEntryViewModel(
     private val saveDayEntryUseCase: SaveDayEntryUseCase,
     private val observeDayEntryUseCase: ObserveDayEntryUseCase,
-    private val dayTagRepository: DayTagRepository
+    private val dayTagRepository: DayTagRepository,
+    private val dayPhotoRepository: DayPhotoRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(CreateEntryUiState())
     val uiState: StateFlow<CreateEntryUiState> = _uiState.asStateFlow()
@@ -91,9 +94,14 @@ class CreateEntryViewModel(
             availableTags = availableTags
         )
         entryLoadJob = viewModelScope.launch {
-            runCatching { observeDayEntryUseCase(entryId).first() }
-                .onSuccess { entry ->
-                    _uiState.value = entry?.toUiState(_uiState.value.availableTags)
+            runCatching {
+                val entry = observeDayEntryUseCase(entryId).first()
+                entry?.toUiState(_uiState.value.availableTags)?.copy(
+                    photos = dayPhotoRepository.observePhotos(entryId).first()
+                )
+            }
+                .onSuccess { entryState ->
+                    _uiState.value = entryState
                         ?: CreateEntryUiState(
                             availableTags = _uiState.value.availableTags,
                             errorMessage = "Запись не найдена"
@@ -175,6 +183,31 @@ class CreateEntryViewModel(
         _uiState.update { state -> state.copy(note = note) }
     }
 
+    fun onPhotosPicked(photos: List<ByteArray>) {
+        if (photos.isEmpty()) return
+        _uiState.update { state ->
+            val combinedPhotos = state.photos + photos
+            state.copy(
+                photos = combinedPhotos.take(MAX_ENTRY_PHOTOS),
+                errorMessage = if (combinedPhotos.size > MAX_ENTRY_PHOTOS) {
+                    "Можно добавить не больше $MAX_ENTRY_PHOTOS фотографий"
+                } else {
+                    null
+                }
+            )
+        }
+    }
+
+    fun onPhotoRemoved(index: Int) {
+        _uiState.update { state ->
+            state.copy(photos = state.photos.filterIndexed { photoIndex, _ -> photoIndex != index })
+        }
+    }
+
+    fun onPhotoImportFailed() {
+        _uiState.update { state -> state.copy(errorMessage = "Не удалось добавить фотографии") }
+    }
+
     fun onTitleChanged(title: String) {
         _uiState.update { state ->
             state.copy(title = title.take(DAY_TITLE_MAX_LENGTH))
@@ -202,13 +235,14 @@ class CreateEntryViewModel(
             }
 
             runCatching {
-                saveDayEntryUseCase(
+                val savedEntry = saveDayEntryUseCase(
                     metrics = metrics,
                     title = state.title,
                     tags = state.orderedSelectedTags(),
                     note = state.note,
                     entryId = editingEntryId
                 )
+                dayPhotoRepository.replacePhotos(savedEntry.id, state.photos)
             }.onSuccess {
                 _uiState.update { currentState ->
                     currentState.copy(isSaving = false, isSaved = true)
@@ -285,5 +319,9 @@ class CreateEntryViewModel(
         _uiState.update { state ->
             state.copy(errorMessage = "Не удалось обновить теги")
         }
+    }
+
+    private companion object {
+        const val MAX_ENTRY_PHOTOS = 10
     }
 }

@@ -29,6 +29,24 @@ data class DayEntryEntity(
     @ColumnInfo(name = "saved_at_epoch_milliseconds") val savedAtEpochMilliseconds: Long?
 )
 
+@Entity(
+    tableName = "day_entry_photos",
+    primaryKeys = ["entry_id", "position"],
+    foreignKeys = [
+        ForeignKey(
+            entity = DayEntryEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["entry_id"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ]
+)
+data class DayEntryPhotoEntity(
+    @ColumnInfo(name = "entry_id") val entryId: Long,
+    val position: Int,
+    @ColumnInfo(name = "image_bytes", typeAffinity = ColumnInfo.BLOB) val imageBytes: ByteArray
+)
+
 @Entity(tableName = "day_tags")
 data class DayTagEntity(
     @PrimaryKey val name: String,

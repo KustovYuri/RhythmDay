@@ -8,6 +8,7 @@ import androidx.room.Transaction
 import androidx.room.Upsert
 import com.rhythmday.app.data.local.entity.DatabaseMetadataEntity
 import com.rhythmday.app.data.local.entity.DayEntryEntity
+import com.rhythmday.app.data.local.entity.DayEntryPhotoEntity
 import com.rhythmday.app.data.local.entity.DayEntryTagCrossRef
 import com.rhythmday.app.data.local.entity.DayEntryWithTags
 import com.rhythmday.app.data.local.entity.DayTagEntity
@@ -18,6 +19,9 @@ abstract class RhythmDayDao {
     @Transaction
     @Query("SELECT * FROM day_entries ORDER BY date_epoch_day ASC")
     abstract fun observeEntries(): Flow<List<DayEntryWithTags>>
+
+    @Query("SELECT * FROM day_entry_photos WHERE entry_id = :entryId ORDER BY position ASC")
+    abstract fun observePhotos(entryId: Long): Flow<List<DayEntryPhotoEntity>>
 
     @Query("SELECT * FROM day_tags ORDER BY sort_order ASC, name ASC")
     abstract fun observeTags(): Flow<List<DayTagEntity>>
@@ -39,6 +43,12 @@ abstract class RhythmDayDao {
 
     @Query("DELETE FROM day_entry_tags WHERE entry_id = :entryId")
     protected abstract suspend fun deleteEntryTags(entryId: Long)
+
+    @Query("DELETE FROM day_entry_photos WHERE entry_id = :entryId")
+    protected abstract suspend fun deleteEntryPhotos(entryId: Long)
+
+    @Insert
+    protected abstract suspend fun insertEntryPhotos(photos: List<DayEntryPhotoEntity>)
 
     @Query("DELETE FROM day_tags WHERE name = :tag")
     abstract suspend fun deleteTag(tag: String)
@@ -62,6 +72,14 @@ abstract class RhythmDayDao {
         upsertEntryEntity(entry)
         deleteEntryTags(entry.id)
         insertEntryTags(cleanTags.map { tag -> DayEntryTagCrossRef(entry.id, tag) })
+    }
+
+    @Transaction
+    open suspend fun replacePhotos(entryId: Long, photos: List<ByteArray>) {
+        deleteEntryPhotos(entryId)
+        insertEntryPhotos(photos.mapIndexed { position, bytes ->
+            DayEntryPhotoEntity(entryId, position, bytes)
+        })
     }
 
     @Transaction
