@@ -78,14 +78,17 @@ class CreateEntryViewModel(
     private var entryLoadJob: Job? = null
     private var tagsLoadJob: Job? = null
 
-    fun prepareEntry(entryId: Long?) {
+    fun prepareEntry(entryId: Long?, entryDate: LocalDate? = null) {
         observeAvailableTags()
         entryLoadJob?.cancel()
         editingEntryId = entryId
         val availableTags = _uiState.value.availableTags
 
         if (entryId == null) {
-            _uiState.value = CreateEntryUiState(availableTags = availableTags)
+            _uiState.value = CreateEntryUiState(
+                entryDate = entryDate,
+                availableTags = availableTags
+            )
             return
         }
 
@@ -240,7 +243,8 @@ class CreateEntryViewModel(
                     title = state.title,
                     tags = state.orderedSelectedTags(),
                     note = state.note,
-                    entryId = editingEntryId
+                    entryId = editingEntryId,
+                    entryDate = state.entryDate
                 )
                 dayPhotoRepository.replacePhotos(savedEntry.id, state.photos)
             }.onSuccess {

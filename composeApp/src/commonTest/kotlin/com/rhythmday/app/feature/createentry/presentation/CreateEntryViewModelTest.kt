@@ -85,6 +85,16 @@ class CreateEntryViewModelTest {
     }
 
     @Test
+    fun preparesNewEntryForRequestedDate() {
+        val viewModel = createViewModel(RecordingDayEntryRepository())
+        val missedDate = LocalDate(2026, 7, 18)
+
+        viewModel.prepareEntry(entryId = null, entryDate = missedDate)
+
+        assertEquals(missedDate, viewModel.uiState.value.entryDate)
+    }
+
+    @Test
     fun titleIsLimitedBeforeSaving() {
         val viewModel = createViewModel(RecordingDayEntryRepository())
 

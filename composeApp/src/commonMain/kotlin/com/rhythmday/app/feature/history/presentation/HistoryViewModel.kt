@@ -22,6 +22,7 @@ import kotlin.time.Clock
 data class HistoryUiState(
     val isLoading: Boolean = true,
     val selectedMonth: LocalDate,
+    val currentDate: LocalDate,
     val entries: List<DayEntry> = emptyList(),
     val canShowPreviousMonth: Boolean = false,
     val canShowNextMonth: Boolean = false,
@@ -34,7 +35,8 @@ class HistoryViewModel(
         Clock.System.todayIn(TimeZone.currentSystemDefault())
     }
 ) : ViewModel() {
-    private val currentMonth = currentDate().firstDayOfMonth()
+    private val today = currentDate()
+    private val currentMonth = today.firstDayOfMonth()
     private val selectedMonth = MutableStateFlow(currentMonth)
 
     val uiState: StateFlow<HistoryUiState> = repository.observeEntries()
@@ -45,6 +47,7 @@ class HistoryViewModel(
             HistoryUiState(
                 isLoading = false,
                 selectedMonth = month,
+                currentDate = today,
                 entries = sortedEntries
                     .filter { entry -> entry.date.isInMonth(month) }
                     .sortedByDescending(DayEntry::date),
@@ -57,6 +60,7 @@ class HistoryViewModel(
                 HistoryUiState(
                     isLoading = false,
                     selectedMonth = selectedMonth.value,
+                    currentDate = today,
                     errorMessage = "Не удалось загрузить историю"
                 )
             )
@@ -64,7 +68,10 @@ class HistoryViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = HistoryUiState(selectedMonth = currentMonth)
+            initialValue = HistoryUiState(
+                selectedMonth = currentMonth,
+                currentDate = today
+            )
         )
 
     fun showPreviousMonth() {

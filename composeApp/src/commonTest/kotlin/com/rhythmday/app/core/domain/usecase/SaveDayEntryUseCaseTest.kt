@@ -11,9 +11,53 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.time.Instant
 
 class SaveDayEntryUseCaseTest {
+    @Test
+    fun savesNewEntryForRequestedPastDate() = runTest {
+        val today = LocalDate(2026, 7, 20)
+        val missedDate = LocalDate(2026, 7, 18)
+        val repository = FakeMutableDayEntryRepository(emptyList())
+        val useCase = SaveDayEntryUseCase(
+            repository = repository,
+            scoreCalculator = DayScoreCalculatorUseCase(),
+            currentDate = { today }
+        )
+
+        val savedEntry = useCase(
+            metrics = DayMetrics(7, 6, 8, 7, 5, 8, 3),
+            title = "Пропущенный день",
+            tags = emptyList(),
+            note = "",
+            entryDate = missedDate
+        )
+
+        assertEquals(missedDate, savedEntry.date)
+        assertEquals(savedEntry, repository.observeEntries().first().single())
+    }
+
+    @Test
+    fun rejectsNewEntryForFutureDate() = runTest {
+        val today = LocalDate(2026, 7, 20)
+        val useCase = SaveDayEntryUseCase(
+            repository = FakeMutableDayEntryRepository(emptyList()),
+            scoreCalculator = DayScoreCalculatorUseCase(),
+            currentDate = { today }
+        )
+
+        assertFailsWith<IllegalArgumentException> {
+            useCase(
+                metrics = DayMetrics(7, 6, 8, 7, 5, 8, 3),
+                title = "",
+                tags = emptyList(),
+                note = "",
+                entryDate = LocalDate(2026, 7, 21)
+            )
+        }
+    }
+
     @Test
     fun savesTodayEntryWithCalculatedScoreAndCleanText() = runTest {
         val today = LocalDate(2026, 7, 20)

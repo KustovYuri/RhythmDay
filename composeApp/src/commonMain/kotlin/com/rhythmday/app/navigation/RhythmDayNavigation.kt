@@ -69,6 +69,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.todayIn
 import org.koin.compose.koinInject
 import kotlin.time.Clock
@@ -82,6 +83,7 @@ private val navigationStateConfiguration = SavedStateConfiguration {
             subclass(HomeRouteKey::class, HomeRouteKey.serializer())
             subclass(HistoryRoute::class, HistoryRoute.serializer())
             subclass(CreateEntryRoute::class, CreateEntryRoute.serializer())
+            subclass(CreateEntryForDateRoute::class, CreateEntryForDateRoute.serializer())
             subclass(EditEntryRoute::class, EditEntryRoute.serializer())
             subclass(AnalyticsRoute::class, AnalyticsRoute.serializer())
             subclass(AiRoute::class, AiRoute.serializer())
@@ -227,7 +229,7 @@ fun RhythmDayNavigation(
 
     val currentRoute = backStack.lastOrNull() as? AppRoute
     val selectedTopLevelRoute = when (currentRoute) {
-        is EntryDetailsRoute, is EditEntryRoute, BlitzRoute -> backStack
+        is EntryDetailsRoute, is EditEntryRoute, is CreateEntryForDateRoute, BlitzRoute -> backStack
             .dropLast(1)
             .mapNotNull { route -> route as? AppRoute }
             .lastOrNull { route -> route.topLevelIndex() != null }
@@ -289,14 +291,28 @@ fun RhythmDayNavigation(
                     HistoryScreenRoute(
                         viewModel = koinViewModel(),
                         contentPadding = contentPadding,
-                        onOpenEntry = { entryId -> open(EntryDetailsRoute(entryId)) }
+                        onOpenEntry = { entryId -> open(EntryDetailsRoute(entryId)) },
+                        onCreateEntry = { date ->
+                            open(CreateEntryForDateRoute(date.toEpochDays()))
+                        }
                     )
                 }
                 entry<CreateEntryRoute> {
                     CreateEntryScreenRoute(
                         viewModel = koinViewModel(key = "entry-form-create"),
                         entryId = null,
+                        entryDate = null,
                         showBackButton = false,
+                        contentPadding = contentPadding,
+                        onBack = ::navigateBack
+                    )
+                }
+                entry<CreateEntryForDateRoute> { route ->
+                    CreateEntryScreenRoute(
+                        viewModel = koinViewModel(key = "entry-form-create-${route.epochDay}"),
+                        entryId = null,
+                        entryDate = LocalDate.fromEpochDays(route.epochDay),
+                        showBackButton = true,
                         contentPadding = contentPadding,
                         onBack = ::navigateBack
                     )
@@ -305,6 +321,7 @@ fun RhythmDayNavigation(
                     CreateEntryScreenRoute(
                         viewModel = koinViewModel(key = "entry-form-edit-${route.entryId}"),
                         entryId = route.entryId,
+                        entryDate = null,
                         showBackButton = true,
                         contentPadding = contentPadding,
                         onBack = ::navigateBack

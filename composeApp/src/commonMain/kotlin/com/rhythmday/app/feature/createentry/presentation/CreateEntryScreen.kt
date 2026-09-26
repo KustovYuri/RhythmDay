@@ -99,6 +99,7 @@ private const val VoiceWaveformSampleIntervalMillis = 160L
 fun CreateEntryRoute(
     viewModel: CreateEntryViewModel,
     entryId: Long?,
+    entryDate: LocalDate?,
     showBackButton: Boolean,
     contentPadding: PaddingValues,
     onBack: () -> Unit
@@ -112,8 +113,8 @@ fun CreateEntryRoute(
         onError = viewModel::onPhotoImportFailed
     )
 
-    LaunchedEffect(viewModel, entryId) {
-        viewModel.prepareEntry(entryId)
+    LaunchedEffect(viewModel, entryId, entryDate) {
+        viewModel.prepareEntry(entryId, entryDate)
     }
 
     LaunchedEffect(state.isSaved) {

@@ -58,7 +58,8 @@ private val DisabledNavigationButtonBackground = Color(0xFFF3F6F7)
 fun HistoryRoute(
     viewModel: HistoryViewModel,
     contentPadding: PaddingValues,
-    onOpenEntry: (Long) -> Unit
+    onOpenEntry: (Long) -> Unit,
+    onCreateEntry: (LocalDate) -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -67,7 +68,8 @@ fun HistoryRoute(
         contentPadding = contentPadding,
         onPreviousMonth = viewModel::showPreviousMonth,
         onNextMonth = viewModel::showNextMonth,
-        onOpenEntry = onOpenEntry
+        onOpenEntry = onOpenEntry,
+        onCreateEntry = onCreateEntry
     )
 }
 
@@ -77,7 +79,8 @@ private fun HistoryScreen(
     contentPadding: PaddingValues,
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
-    onOpenEntry: (Long) -> Unit
+    onOpenEntry: (Long) -> Unit,
+    onCreateEntry: (LocalDate) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -129,7 +132,8 @@ private fun HistoryScreen(
                         state = state,
                         onPreviousMonth = onPreviousMonth,
                         onNextMonth = onNextMonth,
-                        onOpenEntry = onOpenEntry
+                        onOpenEntry = onOpenEntry,
+                        onCreateEntry = onCreateEntry
                     )
                 }
                 item {
@@ -148,7 +152,8 @@ private fun CalendarCard(
     state: HistoryUiState,
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
-    onOpenEntry: (Long) -> Unit
+    onOpenEntry: (Long) -> Unit,
+    onCreateEntry: (LocalDate) -> Unit
 ) {
     HistoryCard {
         MonthSwitcher(
@@ -160,8 +165,10 @@ private fun CalendarCard(
         )
         CalendarGrid(
             month = state.selectedMonth,
+            currentDate = state.currentDate,
             entries = state.entries,
             onOpenEntry = onOpenEntry,
+            onCreateEntry = onCreateEntry,
             modifier = Modifier.padding(top = 12.dp)
         )
     }
@@ -242,8 +249,10 @@ private fun MonthNavigationButton(
 @Composable
 private fun CalendarGrid(
     month: LocalDate,
+    currentDate: LocalDate,
     entries: List<DayEntry>,
     onOpenEntry: (Long) -> Unit,
+    onCreateEntry: (LocalDate) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -278,7 +287,9 @@ private fun CalendarGrid(
                 week.forEach { day ->
                     CalendarDayCell(
                         day = day,
+                        currentDate = currentDate,
                         onOpenEntry = onOpenEntry,
+                        onCreateEntry = onCreateEntry,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -290,7 +301,9 @@ private fun CalendarGrid(
 @Composable
 private fun CalendarDayCell(
     day: CalendarDay?,
+    currentDate: LocalDate,
     onOpenEntry: (Long) -> Unit,
+    onCreateEntry: (LocalDate) -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (day == null) {
@@ -301,10 +314,12 @@ private fun CalendarDayCell(
     val entry = day.entry
     val colors = entry?.overallScore?.let(::scoreColors)
     val shape = CardShape
-    val clickModifier = if (entry == null) {
-        Modifier
-    } else {
-        Modifier.clickable(role = Role.Button) { onOpenEntry(entry.id) }
+    val clickModifier = when {
+        entry != null -> Modifier.clickable(role = Role.Button) { onOpenEntry(entry.id) }
+        day.date < currentDate -> Modifier.clickable(role = Role.Button) {
+            onCreateEntry(day.date)
+        }
+        else -> Modifier
     }
 
     Box(
@@ -490,6 +505,7 @@ private fun HistoryCard(content: @Composable () -> Unit) {
 }
 
 private data class CalendarDay(
+    val date: LocalDate,
     val number: Int,
     val entry: DayEntry?
 )
@@ -501,7 +517,11 @@ private fun calendarCells(month: LocalDate, entries: List<DayEntry>): List<Calen
     val cells = MutableList<CalendarDay?>(firstWeekdayOffset) { null }
 
     (1..lastDay).forEach { day ->
-        cells += CalendarDay(number = day, entry = entriesByDay[day])
+        cells += CalendarDay(
+            date = LocalDate(month.year, month.month, day),
+            number = day,
+            entry = entriesByDay[day]
+        )
     }
     while (cells.size % 7 != 0) cells += null
 

@@ -24,12 +24,17 @@ class SaveDayEntryUseCase(
         title: String,
         tags: List<String>,
         note: String,
-        entryId: Long? = null
+        entryId: Long? = null,
+        entryDate: LocalDate? = null
     ): DayEntry {
         val today = currentDate()
+        val requestedDate = entryDate ?: today
+        require(entryId != null || requestedDate <= today) {
+            "A day entry cannot be created for a future date"
+        }
         val entries = repository.observeEntries().first()
         val existingEntry = if (entryId == null) {
-            entries.firstOrNull { entry -> entry.date == today }
+            entries.firstOrNull { entry -> entry.date == requestedDate }
         } else {
             requireNotNull(entries.firstOrNull { entry -> entry.id == entryId }) {
                 "Entry with id $entryId was not found"
@@ -43,7 +48,7 @@ class SaveDayEntryUseCase(
 
         val entry = DayEntry(
             id = existingEntry?.id ?: nextId,
-            date = existingEntry?.date ?: today,
+            date = existingEntry?.date ?: requestedDate,
             metrics = metrics,
             overallScore = scoreCalculator(metrics),
             tags = cleanTags,
