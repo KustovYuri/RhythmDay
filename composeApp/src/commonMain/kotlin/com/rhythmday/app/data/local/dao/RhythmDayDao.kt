@@ -23,7 +23,7 @@ abstract class RhythmDayDao {
     @Query("SELECT * FROM day_entry_photos WHERE entry_id = :entryId ORDER BY position ASC")
     abstract fun observePhotos(entryId: Long): Flow<List<DayEntryPhotoEntity>>
 
-    @Query("SELECT * FROM day_tags ORDER BY sort_order ASC, name ASC")
+    @Query("SELECT * FROM day_tags ORDER BY sort_order DESC, name ASC")
     abstract fun observeTags(): Flow<List<DayTagEntity>>
 
     @Upsert

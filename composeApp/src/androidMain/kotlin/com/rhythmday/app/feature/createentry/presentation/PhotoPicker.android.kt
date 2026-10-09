@@ -39,6 +39,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cameraswitch
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -172,11 +175,23 @@ private fun CameraCaptureDialog(
             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         }
     }
+    val hasBackCamera = remember(context) {
+        context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA)
+    }
+    val hasFrontCamera = remember(context) {
+        context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_FRONT)
+    }
+    var lensFacing by remember {
+        mutableStateOf(
+            if (hasBackCamera) CameraSelector.LENS_FACING_BACK
+            else CameraSelector.LENS_FACING_FRONT
+        )
+    }
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var isCapturing by remember { mutableStateOf(false) }
     var cameraError by remember { mutableStateOf<String?>(null) }
 
-    DisposableEffect(context, lifecycleOwner, previewView) {
+    DisposableEffect(context, lifecycleOwner, previewView, lensFacing) {
         val providerFuture = ProcessCameraProvider.getInstance(context)
         var provider: ProcessCameraProvider? = null
         var disposed = false
@@ -184,6 +199,8 @@ private fun CameraCaptureDialog(
             {
                 if (disposed) return@addListener
                 runCatching {
+                    imageCapture = null
+                    cameraError = null
                     provider = providerFuture.get()
                     val resolutionSelector = ResolutionSelector.Builder()
                         .setAspectRatioStrategy(
@@ -202,7 +219,9 @@ private fun CameraCaptureDialog(
                     provider?.unbindAll()
                     provider?.bindToLifecycle(
                         lifecycleOwner,
-                        CameraSelector.DEFAULT_BACK_CAMERA,
+                        CameraSelector.Builder()
+                            .requireLensFacing(lensFacing)
+                            .build(),
                         preview,
                         capture
                     )
@@ -249,6 +268,35 @@ private fun CameraCaptureDialog(
                 contentAlignment = Alignment.Center
             ) {
                 Text(text = "×", color = Color.White, fontSize = 30.sp)
+            }
+            if (hasBackCamera && hasFrontCamera) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .windowInsetsPadding(WindowInsets.safeDrawing)
+                        .padding(14.dp)
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xCC152427))
+                        .clickable(
+                            enabled = !isCapturing,
+                            role = Role.Button
+                        ) {
+                            lensFacing = if (lensFacing == CameraSelector.LENS_FACING_BACK) {
+                                CameraSelector.LENS_FACING_FRONT
+                            } else {
+                                CameraSelector.LENS_FACING_BACK
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Cameraswitch,
+                        contentDescription = "Переключить камеру",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
             Column(
                 modifier = Modifier

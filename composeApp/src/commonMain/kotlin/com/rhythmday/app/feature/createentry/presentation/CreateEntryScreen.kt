@@ -33,9 +33,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.CircularProgressIndicator
@@ -171,6 +173,7 @@ private fun CreateEntryScreen(
     var showSpeechInputDialog by remember { mutableStateOf(false) }
     var showPhotoSourceDialog by remember { mutableStateOf(false) }
     var tagPendingDeletion by remember { mutableStateOf<String?>(null) }
+    var customTagInitialValue by remember { mutableStateOf("") }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -212,7 +215,11 @@ private fun CreateEntryScreen(
                     onTagClick = onTagClick,
                     onTagLongClick = { tag -> tagPendingDeletion = tag },
                     onTagsExpandedChanged = onTagsExpandedChanged,
-                    onAddTagClick = { showCustomTagDialog = true }
+                    onAddTagClick = { initialValue ->
+                        customTagInitialValue = initialValue
+                        showCustomTagDialog = true
+                    },
+                    onAddSearchedTag = onCustomTagAdded
                 )
             }
             item {
@@ -252,6 +259,7 @@ private fun CreateEntryScreen(
 
     if (showCustomTagDialog) {
         CustomTagDialog(
+            initialTag = customTagInitialValue,
             onDismiss = { showCustomTagDialog = false },
             onConfirm = { tag ->
                 onCustomTagAdded(tag)
@@ -478,8 +486,17 @@ private fun TagsCard(
     onTagClick: (String) -> Unit,
     onTagLongClick: (String) -> Unit,
     onTagsExpandedChanged: (Boolean) -> Unit,
-    onAddTagClick: () -> Unit
+    onAddTagClick: (String) -> Unit,
+    onAddSearchedTag: (String) -> Unit
 ) {
+    var searchQuery by remember { mutableStateOf("") }
+    val cleanSearchQuery = searchQuery.trim()
+    val visibleTags = if (cleanSearchQuery.isEmpty()) {
+        state.visibleTags()
+    } else {
+        state.availableTags.filter { tag -> tag.contains(cleanSearchQuery, ignoreCase = true) }
+    }
+
     PrototypeCard {
         Column(modifier = Modifier.padding(14.dp)) {
             CardHeader(
@@ -488,16 +505,29 @@ private fun TagsCard(
                     CompactIconButton(
                         icon = Icons.Filled.Add,
                         contentDescription = "Добавить свой тег",
-                        onClick = onAddTagClick
+                        onClick = { onAddTagClick("") }
                     )
                 }
+            )
+            TagSearchField(
+                value = searchQuery,
+                onValueChange = { value -> searchQuery = value },
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
             )
             FlowRow(
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                state.visibleTags().forEach { tag ->
+                if (visibleTags.isEmpty()) {
+                    Text(
+                        text = "Теги не найдены",
+                        fontSize = 13.sp,
+                        lineHeight = 17.sp,
+                        color = RhythmDayPalette.Muted
+                    )
+                }
+                visibleTags.forEach { tag ->
                     TagChip(
                         text = tag,
                         selected = tag in state.selectedTags,
@@ -505,12 +535,116 @@ private fun TagsCard(
                         onLongClick = { onTagLongClick(tag) }
                     )
                 }
-                ExpandTagsChip(
-                    expanded = state.tagsExpanded,
-                    onClick = { onTagsExpandedChanged(!state.tagsExpanded) }
+                if (cleanSearchQuery.isEmpty() && state.availableTags.size > 5) {
+                    ExpandTagsChip(
+                        expanded = state.tagsExpanded,
+                        onClick = { onTagsExpandedChanged(!state.tagsExpanded) }
+                    )
+                }
+            }
+            if (cleanSearchQuery.isNotEmpty() && visibleTags.isEmpty()) {
+                AddSearchedTagButton(
+                    tag = cleanSearchQuery,
+                    onClick = { onAddSearchedTag(cleanSearchQuery) },
+                    modifier = Modifier.padding(top = 12.dp)
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun TagSearchField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .height(40.dp)
+            .clip(CardShape)
+            .background(FieldBackground)
+            .padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Search,
+            contentDescription = null,
+            tint = RhythmDayPalette.Muted,
+            modifier = Modifier.size(18.dp)
+        )
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            textStyle = TextStyle(
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
+                color = RhythmDayPalette.Ink
+            ),
+            modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+            decorationBox = { innerTextField ->
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    if (value.isEmpty()) {
+                        Text(
+                            text = "Поиск",
+                            fontSize = 14.sp,
+                            lineHeight = 18.sp,
+                            color = RhythmDayPalette.Muted
+                        )
+                    }
+                    innerTextField()
+                }
+            }
+        )
+        if (value.isNotEmpty()) {
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = "Очистить поиск тегов",
+                tint = RhythmDayPalette.Muted,
+                modifier = Modifier
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .clickable(role = Role.Button) { onValueChange("") }
+                    .padding(3.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun AddSearchedTagButton(
+    tag: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 42.dp)
+            .clip(CardShape)
+            .background(SelectedTagBackground.copy(alpha = 0.55f))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Add,
+            contentDescription = null,
+            tint = RhythmDayPalette.TealDark,
+            modifier = Modifier.size(18.dp)
+        )
+        Text(
+            text = "Добавить тег «$tag»",
+            modifier = Modifier.padding(start = 6.dp),
+            fontSize = 13.sp,
+            lineHeight = 17.sp,
+            fontWeight = FontWeight.Bold,
+            color = RhythmDayPalette.TealDark,
+            maxLines = 2
+        )
     }
 }
 
@@ -1063,10 +1197,11 @@ private fun DialogActionButton(
 
 @Composable
 private fun CustomTagDialog(
+    initialTag: String,
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit
 ) {
-    var tag by remember { mutableStateOf("") }
+    var tag by remember(initialTag) { mutableStateOf(initialTag) }
     val confirm = {
         val cleanTag = tag.trim()
         if (cleanTag.isNotEmpty()) {

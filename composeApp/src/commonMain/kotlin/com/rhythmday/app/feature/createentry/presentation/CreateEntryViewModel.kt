@@ -139,7 +139,7 @@ class CreateEntryViewModel(
 
     fun onTagClick(tag: String) {
         _uiState.update { state ->
-            if (tag !in state.availableTags) return@update state
+            if (tag !in state.availableTags && tag !in state.selectedTags) return@update state
             val nextTags = if (tag in state.selectedTags) {
                 state.selectedTags - tag
             } else {
@@ -169,13 +169,23 @@ class CreateEntryViewModel(
     fun onCustomTagAdded(tag: String) {
         val cleanTag = tag.trim()
         if (cleanTag.isEmpty()) return
+        val existingTag = _uiState.value.availableTags.firstOrNull { availableTag ->
+            availableTag.equals(cleanTag, ignoreCase = true)
+        }
+        val tagToSelect = existingTag ?: cleanTag
 
         _uiState.update { state ->
             state.copy(
-                availableTags = (state.availableTags + cleanTag).distinct(),
-                selectedTags = state.selectedTags + cleanTag
+                availableTags = if (existingTag == null) {
+                    (listOf(cleanTag) + state.availableTags).distinct()
+                } else {
+                    state.availableTags
+                },
+                selectedTags = state.selectedTags + tagToSelect
             )
         }
+        if (existingTag != null) return
+
         viewModelScope.launch {
             runCatching { dayTagRepository.addTag(cleanTag) }
                 .onFailure { showTagOperationError() }
@@ -302,7 +312,7 @@ class CreateEntryViewModel(
             sociality = metrics.sociality,
             stress = metrics.stress,
             selectedTags = tags.toSet(),
-            availableTags = availableTags,
+            availableTags = (availableTags + tags).distinct(),
             title = title.orEmpty(),
             note = note.orEmpty()
         )
@@ -314,7 +324,12 @@ class CreateEntryViewModel(
             dayTagRepository.observeTags()
                 .catch { showTagOperationError() }
                 .collect { tags ->
-                    _uiState.update { state -> state.copy(availableTags = tags) }
+                    _uiState.update { state ->
+                        state.copy(
+                            availableTags = (tags + state.selectedTags.filterNot(tags::contains))
+                                .distinct()
+                        )
+                    }
                 }
         }
     }

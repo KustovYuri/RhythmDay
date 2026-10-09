@@ -168,7 +168,12 @@ class CreateEntryViewModelTest {
             val repository = RecordingDayEntryRepository(listOf(originalEntry))
             val originalPhotos = listOf(byteArrayOf(1, 2, 3), byteArrayOf(4, 5, 6))
             val photoRepository = RecordingDayPhotoRepository(originalEntry.id, originalPhotos)
-            val viewModel = createViewModel(repository, photoRepository = photoRepository)
+            val tagRepository = RecordingDayTagRepository(listOf("Спорт", "Работа"))
+            val viewModel = createViewModel(
+                repository = repository,
+                tagRepository = tagRepository,
+                photoRepository = photoRepository
+            )
 
             viewModel.prepareEntry(originalEntry.id)
             advanceUntilIdle()
@@ -178,11 +183,14 @@ class CreateEntryViewModelTest {
             assertEquals(originalEntry.metrics.energy, viewModel.uiState.value.energy)
             assertEquals(originalEntry.metrics.sleepQuality, viewModel.uiState.value.sleepQuality)
             assertEquals(originalEntry.tags.toSet(), viewModel.uiState.value.selectedTags)
+            assertTrue("Медитация" in viewModel.uiState.value.availableTags)
             assertEquals(originalEntry.note, viewModel.uiState.value.note)
             assertContentEquals(originalPhotos[0], viewModel.uiState.value.photos[0])
             assertContentEquals(originalPhotos[1], viewModel.uiState.value.photos[1])
 
             viewModel.onMetricChanged(CreateEntryMetric.ENERGY, 9.4)
+            viewModel.onTagClick("Медитация")
+            viewModel.onTagClick("Работа")
             viewModel.onTitleChanged("Новый ритм")
             viewModel.onNoteChanged("Обновленный комментарий")
             viewModel.save()
@@ -193,6 +201,7 @@ class CreateEntryViewModelTest {
             assertEquals(originalEntry.date, updatedEntry.date)
             assertEquals("Новый ритм", updatedEntry.title)
             assertEquals(9.4, updatedEntry.metrics.energy)
+            assertEquals(setOf("Спорт", "Работа"), updatedEntry.tags.toSet())
             assertEquals("Обновленный комментарий", updatedEntry.note)
             assertContentEquals(originalPhotos[0], photoRepository.photos.value[0])
             assertContentEquals(originalPhotos[1], photoRepository.photos.value[1])
