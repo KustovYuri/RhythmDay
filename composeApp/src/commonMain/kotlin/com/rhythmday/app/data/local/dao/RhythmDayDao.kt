@@ -7,7 +7,6 @@ import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
 import com.rhythmday.app.data.local.entity.DatabaseMetadataEntity
-import com.rhythmday.app.data.local.entity.AiReportEntity
 import com.rhythmday.app.data.local.entity.DayEntryEntity
 import com.rhythmday.app.data.local.entity.DayEntryPhotoEntity
 import com.rhythmday.app.data.local.entity.DayEntryTagCrossRef
@@ -26,12 +25,6 @@ abstract class RhythmDayDao {
 
     @Query("SELECT * FROM day_tags ORDER BY sort_order DESC, name ASC")
     abstract fun observeTags(): Flow<List<DayTagEntity>>
-
-    @Query("SELECT * FROM ai_reports WHERE from_epoch_day = :fromEpochDay AND to_epoch_day = :toEpochDay LIMIT 1")
-    abstract suspend fun aiReport(fromEpochDay: Long, toEpochDay: Long): AiReportEntity?
-
-    @Upsert
-    abstract suspend fun upsertAiReport(report: AiReportEntity)
 
     @Upsert
     protected abstract suspend fun upsertEntryEntity(entry: DayEntryEntity)

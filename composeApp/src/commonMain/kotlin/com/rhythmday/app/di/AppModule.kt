@@ -7,18 +7,12 @@ import com.rhythmday.app.core.domain.usecase.DayScoreCalculatorUseCase
 import com.rhythmday.app.core.domain.usecase.ObserveDayEntryUseCase
 import com.rhythmday.app.core.domain.usecase.SaveDayEntryUseCase
 import com.rhythmday.app.data.local.RhythmDayDatabase
-import com.rhythmday.app.data.remote.AiReportApi
-import com.rhythmday.app.data.remote.createAiHttpClient
-import com.rhythmday.app.data.remote.platformAiBaseUrl
 import com.rhythmday.app.data.repository.DemoDataSeeder
-import com.rhythmday.app.data.repository.LocalAiReportRepository
 import com.rhythmday.app.data.repository.RoomDayEntryRepository
 import com.rhythmday.app.data.repository.RoomDayPhotoRepository
 import com.rhythmday.app.data.repository.RoomDayTagRepository
 import com.rhythmday.app.feature.blitz.presentation.BlitzViewModel
 import com.rhythmday.app.feature.analytics.presentation.AnalyticsViewModel
-import com.rhythmday.app.feature.ai.domain.AiReportRepository
-import com.rhythmday.app.feature.ai.presentation.AiReportViewModel
 import com.rhythmday.app.feature.createentry.presentation.CreateEntryViewModel
 import com.rhythmday.app.feature.entrydetails.presentation.EntryDetailsViewModel
 import com.rhythmday.app.feature.history.presentation.HistoryViewModel
@@ -40,8 +34,6 @@ fun appModule(
 ) = module {
     single { database }
     single { database.rhythmDayDao() }
-    single { createAiHttpClient() }
-    single { AiReportApi(get(), platformAiBaseUrl()) }
     single { DayScoreCalculatorUseCase() }
     single { DemoDataSeeder(get(), get()) }
     single<DayEntryRepository> {
@@ -52,7 +44,6 @@ fun appModule(
     }
     single<DayTagRepository> { RoomDayTagRepository(get()) }
     single<DayPhotoRepository> { RoomDayPhotoRepository(get()) }
-    single<AiReportRepository> { LocalAiReportRepository(get(), get()) }
     single { reminderSettingsRepository }
     single { dailyReminderScheduler }
     single { SaveDayEntryUseCase(get(), get()) }
@@ -61,14 +52,6 @@ fun appModule(
     viewModel { BlitzViewModel(get(), get()) }
     viewModel { CreateEntryViewModel(get(), get(), get(), get()) }
     viewModel { AnalyticsViewModel(get()) }
-    viewModel { parameters ->
-        AiReportViewModel(
-            from = parameters.get(),
-            to = parameters.get(),
-            dayEntryRepository = get(),
-            aiReportRepository = get()
-        )
-    }
     viewModel { HistoryViewModel(get()) }
     viewModel { parameters ->
         EntryDetailsViewModel(

@@ -8,13 +8,6 @@ val keystoreProperties = Properties().apply {
         keystorePropertiesFile.inputStream().use(::load)
     }
 }
-val debugAiApiBaseUrl = providers.gradleProperty("RHYTHMDAY_API_BASE_URL")
-    .orElse("http://10.0.2.2:8080")
-val releaseAiApiBaseUrl = providers.gradleProperty("RHYTHMDAY_API_BASE_URL")
-    .orElse("")
-val releaseAllowsCleartext = providers.gradleProperty("RHYTHMDAY_ALLOW_CLEARTEXT")
-    .map(String::toBoolean)
-    .orElse(false)
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -141,14 +134,11 @@ android {
             versionNameSuffix = "-dev"
             manifestPlaceholders["appLabel"] = "Ритм дня Dev"
             buildConfigField("boolean", "SEED_DEMO_DATA", "true")
-            buildConfigField("String", "AI_API_BASE_URL", "\"${debugAiApiBaseUrl.get()}\"")
         }
         getByName("release") {
             isDebuggable = false
             manifestPlaceholders["appLabel"] = "Ритм дня"
-            manifestPlaceholders["usesCleartextTraffic"] = releaseAllowsCleartext.get()
             buildConfigField("boolean", "SEED_DEMO_DATA", "false")
-            buildConfigField("String", "AI_API_BASE_URL", "\"${releaseAiApiBaseUrl.get()}\"")
             signingConfig = signingConfigs.getByName("release")
         }
     }

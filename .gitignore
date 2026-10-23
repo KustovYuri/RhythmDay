@@ -2,7 +2,6 @@
 .kotlin/
 build/
 **/build/
-composeApp/release/
 local.properties
 keystore.properties
 AGENTS.md

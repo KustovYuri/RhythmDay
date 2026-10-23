@@ -53,7 +53,6 @@ import com.rhythmday.app.core.designsystem.RhythmDayPalette
 import com.rhythmday.app.core.domain.model.DayEntry
 import com.rhythmday.app.core.domain.repository.DayEntryRepository
 import com.rhythmday.app.feature.analytics.presentation.AnalyticsRoute as AnalyticsScreenRoute
-import com.rhythmday.app.feature.ai.presentation.AiReportRoute as AiReportScreenRoute
 import com.rhythmday.app.feature.blitz.presentation.BlitzRoute as BlitzScreenRoute
 import com.rhythmday.app.feature.createentry.presentation.CreateEntryRoute as CreateEntryScreenRoute
 import com.rhythmday.app.feature.entrydetails.presentation.EntryDetailsRoute as EntryDetailsScreenRoute
@@ -332,23 +331,11 @@ fun RhythmDayNavigation(
                     AnalyticsScreenRoute(
                         viewModel = koinViewModel(),
                         contentPadding = contentPadding,
-                        onOpenEntry = { entryId -> open(EntryDetailsRoute(entryId)) },
-                        onOpenAiReport = { from, to ->
-                            open(AiRoute(from.toEpochDays(), to.toEpochDays()))
-                        }
+                        onOpenEntry = { entryId -> open(EntryDetailsRoute(entryId)) }
                     )
                 }
-                entry<AiRoute> { route ->
-                    val from = LocalDate.fromEpochDays(route.fromEpochDay)
-                    val to = LocalDate.fromEpochDays(route.toEpochDay)
-                    AiReportScreenRoute(
-                        viewModel = koinViewModel(
-                            key = "ai-report-${route.fromEpochDay}-${route.toEpochDay}",
-                            parameters = { parametersOf(from, to) }
-                        ),
-                        contentPadding = contentPadding,
-                        onBack = ::navigateBack
-                    )
+                entry<AiRoute> {
+                    PlaceholderContent("Функционал в разработке", contentPadding)
                 }
                 entry<BlitzRoute> {
                     BlitzScreenRoute(
