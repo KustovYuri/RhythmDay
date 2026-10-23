@@ -24,7 +24,10 @@ data class EditEntryRoute(val entryId: Long) : AppRoute
 data object AnalyticsRoute : AppRoute
 
 @Serializable
-data object AiRoute : AppRoute
+data class AiRoute(
+    val fromEpochDay: Long,
+    val toEpochDay: Long
+) : AppRoute
 
 @Serializable
 data object BlitzRoute : AppRoute

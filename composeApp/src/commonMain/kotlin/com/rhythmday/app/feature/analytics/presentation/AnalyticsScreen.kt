@@ -28,8 +28,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
@@ -118,7 +120,8 @@ private data class ChartVerticalScale(
 fun AnalyticsRoute(
     viewModel: AnalyticsViewModel,
     contentPadding: PaddingValues,
-    onOpenEntry: (Long) -> Unit
+    onOpenEntry: (Long) -> Unit,
+    onOpenAiReport: (LocalDate, LocalDate) -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -131,7 +134,8 @@ fun AnalyticsRoute(
         onMetricOpened = viewModel::showMetric,
         onPeriodStartChanged = viewModel::setPeriodStart,
         onPeriodEndChanged = viewModel::setPeriodEnd,
-        onOpenEntry = onOpenEntry
+        onOpenEntry = onOpenEntry,
+        onOpenAiReport = onOpenAiReport
     )
 }
 
@@ -145,7 +149,8 @@ private fun AnalyticsScreen(
     onMetricOpened: (AnalyticsMetric) -> Unit,
     onPeriodStartChanged: (LocalDate) -> Unit,
     onPeriodEndChanged: (LocalDate) -> Unit,
-    onOpenEntry: (Long) -> Unit
+    onOpenEntry: (Long) -> Unit,
+    onOpenAiReport: (LocalDate, LocalDate) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -182,6 +187,12 @@ private fun AnalyticsScreen(
                     onEndDateChanged = onPeriodEndChanged
                 )
             }
+        }
+        item {
+            AiReportCard(
+                entryCount = state.entries.size,
+                onClick = { onOpenAiReport(state.rangeStart, state.rangeEnd) }
+            )
         }
         item {
             ModeSwitch(
@@ -224,6 +235,53 @@ private fun AnalyticsScreen(
                     onMetricOpened = onMetricOpened
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun AiReportCard(entryCount: Int, onClick: () -> Unit) {
+    Surface(
+        shape = CardShape,
+        color = Color(0xFFE2F2EF),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "AI-разбор периода",
+                    fontSize = 16.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = RhythmDayPalette.Ink
+                )
+                Text(
+                    text = if (entryCount == 0) {
+                        "Добавь записи, чтобы сформировать отчёт"
+                    } else {
+                        "Наблюдения и рекомендации по $entryCount записям"
+                    },
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    color = RhythmDayPalette.Muted,
+                    modifier = Modifier.padding(top = 3.dp)
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "Открыть AI-разбор",
+                tint = RhythmDayPalette.Teal,
+                modifier = Modifier
+                    .padding(start = 12.dp)
+                    .size(36.dp)
+                    .background(Color.White.copy(alpha = 0.72f), CircleShape)
+                    .padding(6.dp)
+            )
         }
     }
 }

@@ -10,6 +10,7 @@ import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.execSQL
 import com.rhythmday.app.data.local.dao.RhythmDayDao
 import com.rhythmday.app.data.local.entity.DatabaseMetadataEntity
+import com.rhythmday.app.data.local.entity.AiReportEntity
 import com.rhythmday.app.data.local.entity.DayEntryEntity
 import com.rhythmday.app.data.local.entity.DayEntryPhotoEntity
 import com.rhythmday.app.data.local.entity.DayEntryTagCrossRef
@@ -24,9 +25,10 @@ const val RHYTHM_DAY_DATABASE_NAME = "rhythmday.db"
         DayEntryPhotoEntity::class,
         DayTagEntity::class,
         DayEntryTagCrossRef::class,
-        DatabaseMetadataEntity::class
+        DatabaseMetadataEntity::class,
+        AiReportEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @ConstructedBy(RhythmDayDatabaseConstructor::class)
@@ -53,10 +55,25 @@ private val migration1To2 = object : Migration(1, 2) {
     }
 }
 
+private val migration2To3 = object : Migration(2, 3) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(
+            """CREATE TABLE IF NOT EXISTS `ai_reports` (
+                `from_epoch_day` INTEGER NOT NULL,
+                `to_epoch_day` INTEGER NOT NULL,
+                `entries_fingerprint` TEXT NOT NULL,
+                `report_json` TEXT NOT NULL,
+                `generated_at_epoch_milliseconds` INTEGER NOT NULL,
+                PRIMARY KEY(`from_epoch_day`, `to_epoch_day`)
+            )""".trimIndent()
+        )
+    }
+}
+
 fun buildRhythmDayDatabase(
     builder: RoomDatabase.Builder<RhythmDayDatabase>
 ): RhythmDayDatabase = builder
-    .addMigrations(migration1To2)
+    .addMigrations(migration1To2, migration2To3)
     .setDriver(BundledSQLiteDriver())
-    .setQueryCoroutineContext(Dispatchers.IO)
+    .setQueryCoroutineContext(Dispatchers.Default)
     .build()
